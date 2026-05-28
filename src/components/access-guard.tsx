@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore } from "@/firebase";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 interface AccessGuardProps {
   children: React.ReactNode;
@@ -73,10 +75,20 @@ export function AccessGuard({ children }: AccessGuardProps) {
         expiresAt.setDate(expiresAt.getDate() + 30);
         const expiresAtStr = expiresAt.toISOString();
 
-        await updateDoc(doc(db, "access_codes", docSnap.id), {
+        const updateData = {
           usedAt: new Date().toISOString(),
           expiresAt: expiresAtStr
-        });
+        };
+
+        updateDoc(doc(db, "access_codes", docSnap.id), updateData)
+          .catch(async (err) => {
+            const permissionError = new FirestorePermissionError({
+              path: `access_codes/${docSnap.id}`,
+              operation: 'update',
+              requestResourceData: updateData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          });
 
         localStorage.setItem("israel_access_token", code.toUpperCase());
         localStorage.setItem("israel_access_expires", expiresAtStr);

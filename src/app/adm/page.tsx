@@ -51,23 +51,28 @@ export default function AdminPage() {
     setPassInput("");
   };
 
-  const generateCode = async () => {
+  const generateCode = () => {
     if (!db) return;
     setLoading(true);
     const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
     
-    addDoc(collection(db, "access_codes"), {
+    const data = {
       code: newCode,
       createdAt: new Date().toISOString(),
       usedAt: null,
       expiresAt: null
-    }).catch(async (err) => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: 'access_codes',
-        operation: 'create',
-        requestResourceData: { code: newCode }
-      }));
-    }).finally(() => setLoading(false));
+    };
+
+    addDoc(collection(db, "access_codes"), data)
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'access_codes',
+          operation: 'create',
+          requestResourceData: data
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => setLoading(false));
 
     toast({ title: "CÓDIGO GERADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
   };
@@ -79,7 +84,13 @@ export default function AdminPage() {
     const batch = writeBatch(db);
     snapshot.docs.forEach((d) => batch.delete(d.ref));
     
-    batch.commit().then(() => {
+    batch.commit().catch(async (err) => {
+      const permissionError = new FirestorePermissionError({
+        path: 'access_codes',
+        operation: 'delete'
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    }).then(() => {
       toast({ title: "LIMPEZA CONCLUÍDA", className: "bg-blue-600 text-white font-black rounded-2xl" });
     });
   };
@@ -89,8 +100,8 @@ export default function AdminPage() {
     toast({ title: "COPIADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
   };
 
-  const activeUsers = useMemo(() => codes.filter(c => c.usedAt !== null), [codes]);
-  const pendingCodes = useMemo(() => codes.filter(c => c.usedAt === null), [codes]);
+  const activeUsers = useMemo(() => (codes || []).filter(c => c.usedAt !== null), [codes]);
+  const pendingCodes = useMemo(() => (codes || []).filter(c => c.usedAt === null), [codes]);
 
   if (!isLogged) {
     return (
