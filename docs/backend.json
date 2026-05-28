@@ -1,20 +1,20 @@
-
 {
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Sinais recebidos via webhook",
+      "description": "Registros de sinais recebidos via webhook",
       "type": "object",
       "properties": {
-        "timestamp": { "type": "string" },
-        "payload": { "type": "object" },
-        "createdAt": { "type": "string" }
+        "timestamp": { "type": "string", "description": "ISO timestamp do recebimento" },
+        "payload": { "type": "object", "description": "Dados brutos do sinal" },
+        "createdAt": { "type": "string", "description": "Data de criação para ordenação" },
+        "method": { "type": "string" }
       },
       "required": ["timestamp", "payload", "createdAt"]
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Códigos de acesso do sistema",
+      "description": "Códigos de ativação de 30 dias",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
@@ -31,11 +31,11 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção de registros de sinais"
+      "description": "Histórico de sinais em tempo real"
     },
     "/access_codes/{codeId}": {
       "schema": "AccessCode",
-      "description": "Coleção de códigos de ativação"
+      "description": "Controle de ativações de usuários"
     }
   }
 }
