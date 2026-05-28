@@ -3,16 +3,21 @@
 
 Este projeto utiliza Next.js com Firebase Firestore para monitoramento de webhooks e códigos em tempo real.
 
-## Configuração do Banco de Dados
+## Configuração Manual (Caminho Alternativo)
 
-Como o provisionamento automático falhou, siga estes passos:
+Como você já criou o projeto no console, siga estes passos:
 
-1. **Acesse o Console**: [https://console.firebase.google.com/](https://console.firebase.google.com/)
-2. **Crie um Projeto**: Nomeie como "Receptor Israel".
-3. **Crie o Firestore**: Vá em "Build > Firestore Database" e clique em "Criar banco de dados". Use o modo de teste para facilitar o início.
-4. **Adicione um App Web**: No painel principal, clique no ícone `</>` para gerar as chaves de API.
-5. **Configure o Código**: Abra o arquivo `src/firebase/config.ts` e cole as chaves geradas.
+1. **Obter Configuração Web**:
+   - No [Console do Firebase](https://console.firebase.google.com/), acesse seu projeto "Receptor Israel".
+   - Na engrenagem (Configurações do Projeto) ou na Visão Geral, clique no ícone `</>` (Web).
+   - Copie os valores do objeto `firebaseConfig`.
+   - Abra o arquivo `src/firebase/config.ts` no editor e cole os valores lá.
+
+2. **Ativar o Banco de Dados**:
+   - No menu lateral do Firebase, vá em **Build > Firestore Database**.
+   - Clique em **Criar banco de dados**.
+   - Escolha o local (ex: `southamerica-east1`).
+   - Selecione **Modo de Teste** para liberar o acesso inicial.
 
 ## Link Direto para o Banco
-Substitua `SEU-PROJECT-ID` pelo ID que você criou no console:
-`https://console.firebase.google.com/project/SEU-PROJECT-ID/firestore`
+`https://console.firebase.google.com/project/${SUA_PROJECT_ID}/firestore`
