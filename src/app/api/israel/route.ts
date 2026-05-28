@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
+// Headers CORS ultra-permissivos para evitar erro 401 e bloqueios de origem
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     let payload;
     const contentType = req.headers.get("content-type") || "";
     
-    // Captura flexível de dados
+    // Captura flexível de dados (JSON ou Texto)
     try {
       if (contentType.includes("application/json")) {
         payload = await req.json();
@@ -43,8 +44,8 @@ export async function POST(req: NextRequest) {
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão de Baixa Latência via Firestore (Túnel)
-    // Usamos timestamp como string para evitar problemas de índice em tempo real
+    // Transmissão via Firestore (Relay)
+    // Usamos addDoc para empurrar o sinal para o dashboard instantaneamente
     addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
@@ -52,14 +53,15 @@ export async function POST(req: NextRequest) {
       createdAt: serverTimestamp(),
     }).catch(err => console.error("Falha no túnel de sinal:", err));
 
-    // Resposta imediata para evitar timeouts no remetente
+    // Resposta imediata (Status 200) para evitar Timeouts no remetente
     return NextResponse.json(
       { status: "success", info: "Signal captured" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
+    // Fallback silencioso para garantir que o remetente sempre receba um OK
     return NextResponse.json(
-      { status: "ok", info: "Processed with fallback" },
+      { status: "ok", info: "Processed" },
       { status: 200, headers: corsHeaders }
     );
   }

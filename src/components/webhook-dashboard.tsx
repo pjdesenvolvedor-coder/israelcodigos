@@ -37,13 +37,21 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 const db = getFirestore(app);
 
 export function WebhookDashboard() {
+  const [mounted, setMounted] = useState(false);
   const [history, setHistory] = useState<WebhookEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<WebhookEntry | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isInterpreting, setIsInterpreting] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(true);
 
+  // Garante que o componente só renderize conteúdo dinâmico no cliente para evitar erro de hidratação
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     // Monitoramento em tempo real de baixa latência (Túnel de Sinais)
     const q = query(
       collection(db, "webhooks"), 
@@ -61,7 +69,6 @@ export function WebhookDashboard() {
       setHistory(entries);
       setIsConnected(true);
       
-      // Notificação de novo sinal
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added" && !snapshot.metadata.hasPendingWrites) {
           toast({
@@ -77,7 +84,7 @@ export function WebhookDashboard() {
     });
     
     return () => unsubscribe();
-  }, []);
+  }, [mounted]);
 
   const filteredHistory = useMemo(() => {
     if (!searchTerm) return history;
@@ -120,9 +127,12 @@ export function WebhookDashboard() {
     }
   };
 
+  if (!mounted) {
+    return <div className="h-screen bg-white" />;
+  }
+
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900 font-sans">
-      {/* Header Estilo Militar/Monitoramento */}
       <header className="h-20 border-b flex items-center justify-between px-8 bg-blue-700 shrink-0 z-30 shadow-xl">
         <div className="flex items-center gap-4 text-white">
           <div className="bg-white p-2 rounded-lg">
@@ -162,7 +172,6 @@ export function WebhookDashboard() {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Lista de Sinais Capturados */}
         <aside className="w-96 border-r flex flex-col shrink-0 bg-slate-50">
           <div className="p-5 border-b bg-white">
             <div className="relative">
@@ -217,7 +226,6 @@ export function WebhookDashboard() {
           </ScrollArea>
         </aside>
 
-        {/* Console de Inspeção */}
         <main className="flex-1 flex flex-col bg-white">
           {selectedEntry ? (
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -233,7 +241,6 @@ export function WebhookDashboard() {
                 <div className="border-r flex flex-col bg-white overflow-hidden">
                   <ScrollArea className="flex-1 p-8">
                     <div className="space-y-8">
-                      {/* IA e Metadados */}
                       <Card className="border-2 border-blue-100 shadow-lg rounded-2xl overflow-hidden">
                         <CardHeader className="py-4 px-6 bg-blue-50 border-b border-blue-100">
                           <div className="flex items-center gap-3 text-blue-800">
@@ -282,7 +289,6 @@ export function WebhookDashboard() {
                   </ScrollArea>
                 </div>
 
-                {/* Área RAW (Terminal) */}
                 <div className="bg-slate-900 text-blue-100 flex flex-col shadow-2xl">
                   <div className="p-4 border-b border-white/10 bg-black/50 flex items-center justify-between px-8">
                     <div className="flex items-center gap-3">
