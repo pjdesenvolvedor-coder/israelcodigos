@@ -200,7 +200,7 @@ export function WebhookDashboard() {
             <Smartphone className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tighter text-blue-900 leading-none uppercase">ISRAEL</h1>
+            <h1 className="text-xl font-black tracking-tighter text-blue-900 leading-none uppercase">ISRAEL05</h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Sinais</span>
               <div className="h-1 w-1 rounded-full bg-blue-200" />
@@ -330,7 +330,7 @@ export function WebhookDashboard() {
         )}
 
         <footer className="p-8 text-center">
-          <p className="text-[9px] font-black text-blue-200 uppercase tracking-[0.5em]">PROTEÇÃO TÁTICA ISRAEL</p>
+          <p className="text-[9px] font-black text-blue-200 uppercase tracking-[0.5em]">PROTEÇÃO TÁTICA ISRAEL05</p>
         </footer>
       </main>
     </div>
