@@ -1,4 +1,9 @@
 
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
+import { firebaseConfig } from './config';
+
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';
@@ -6,14 +11,17 @@ export * from './firestore/use-doc';
 export * from './auth/use-user';
 export * from './config';
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { firebaseConfig } from './config';
+let app: FirebaseApp;
+let firestore: Firestore;
+let auth: Auth;
 
 export function initializeFirebase() {
-  const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  const firestore = getFirestore(app);
-  const auth = getAuth(app);
+  if (getApps().length > 0) {
+    app = getApp();
+  } else {
+    app = initializeApp(firebaseConfig);
+  }
+  firestore = getFirestore(app);
+  auth = getAuth(app);
   return { app, firestore, auth };
 }
