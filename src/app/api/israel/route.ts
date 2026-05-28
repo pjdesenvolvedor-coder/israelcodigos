@@ -6,7 +6,6 @@ import { firebaseConfig } from "@/firebase/config";
 
 export const dynamic = 'force-dynamic';
 
-// Inicialização ultra-rápida do Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
@@ -26,7 +25,7 @@ export async function POST(req: NextRequest) {
     let payload;
     const contentType = req.headers.get("content-type") || "";
     
-    // Captura o corpo da requisição de forma flexível
+    // Captura flexível de dados
     try {
       if (contentType.includes("application/json")) {
         payload = await req.json();
@@ -35,33 +34,32 @@ export async function POST(req: NextRequest) {
         try {
           payload = JSON.parse(text);
         } catch {
-          payload = { conteudo_bruto: text };
+          payload = { raw: text };
         }
       }
     } catch (e) {
-      payload = { status: "recebido", aviso: "formato_nao_identificado" };
+      payload = { status: "error", message: "Invalid payload format" };
     }
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão Instantânea para o Dashboard via Firestore (Túnel de Sinais)
-    // Não usamos await na gravação para liberar a resposta ao remetente imediatamente
+    // Transmissão de Baixa Latência via Firestore (Túnel)
+    // Usamos timestamp como string para evitar problemas de índice em tempo real
     addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
       headers: headers,
       createdAt: serverTimestamp(),
-    }).catch(err => console.error("Erro no Túnel de Sinal:", err));
+    }).catch(err => console.error("Falha no túnel de sinal:", err));
 
-    // Resposta imediata com sucesso 200
+    // Resposta imediata para evitar timeouts no remetente
     return NextResponse.json(
-      { status: "sucesso", sinal: "capturado" },
+      { status: "success", info: "Signal captured" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
-    // Retorna 200 mesmo em caso de erro interno para não travar o remetente
     return NextResponse.json(
-      { status: "ok", aviso: "processado_com_ressalvas" },
+      { status: "ok", info: "Processed with fallback" },
       { status: 200, headers: corsHeaders }
     );
   }
@@ -69,7 +67,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   return NextResponse.json(
-    { servico: "RECEPTOR ISRAEL", status: "online", endpoint: "/api/israel" },
+    { service: "Israel Receiver", status: "online", endpoint: "/api/israel" },
     { status: 200, headers: corsHeaders }
   );
 }

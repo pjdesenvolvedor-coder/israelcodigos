@@ -11,8 +11,7 @@ import {
   Wifi,
   WifiOff,
   Terminal,
-  Clock,
-  ExternalLink
+  Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,10 +44,10 @@ export function WebhookDashboard() {
   const [isConnected, setIsConnected] = useState(true);
 
   useEffect(() => {
-    // Monitoramento em tempo real de baixa latência
+    // Monitoramento em tempo real de baixa latência (Túnel de Sinais)
     const q = query(
       collection(db, "webhooks"), 
-      orderBy("createdAt", "desc"), 
+      orderBy("timestamp", "desc"), 
       limit(50)
     );
     
@@ -62,18 +61,18 @@ export function WebhookDashboard() {
       setHistory(entries);
       setIsConnected(true);
       
-      // Feedback visual de novo sinal
+      // Notificação de novo sinal
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added" && !snapshot.metadata.hasPendingWrites) {
           toast({
-            title: "NOVO SINAL CAPTURADO",
-            description: "Um pacote de dados acaba de chegar.",
+            title: "SINAL CAPTURADO",
+            description: "Um novo pacote de dados chegou ao receptor.",
             className: "bg-blue-600 text-white border-none font-bold",
           });
         }
       });
     }, (error) => {
-      console.error("Falha no monitoramento:", error);
+      console.error("Erro na escuta do túnel:", error);
       setIsConnected(false);
     });
     
@@ -96,9 +95,9 @@ export function WebhookDashboard() {
       querySnapshot.docs.forEach((doc) => batch.delete(doc.ref));
       await batch.commit();
       setSelectedEntry(null);
-      toast({ title: "Limpeza Concluída", description: "O histórico de sinais foi apagado." });
+      toast({ title: "Limpeza Concluída", description: "O histórico temporário foi apagado." });
     } catch (e) {
-      toast({ variant: "destructive", title: "Erro ao limpar histórico" });
+      toast({ variant: "destructive", title: "Erro ao limpar sinais" });
     }
   };
 
@@ -115,7 +114,7 @@ export function WebhookDashboard() {
         }
       });
     } catch (e) {
-      toast({ variant: "destructive", title: "Falha na análise da IA" });
+      toast({ variant: "destructive", title: "Erro na análise de IA" });
     } finally {
       setIsInterpreting(null);
     }
@@ -123,41 +122,41 @@ export function WebhookDashboard() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900 font-sans">
-      {/* Cabeçalho de Comando */}
-      <header className="h-20 border-b flex items-center justify-between px-8 bg-blue-700 shrink-0 z-30 shadow-2xl">
+      {/* Header Estilo Militar/Monitoramento */}
+      <header className="h-20 border-b flex items-center justify-between px-8 bg-blue-700 shrink-0 z-30 shadow-xl">
         <div className="flex items-center gap-4 text-white">
-          <div className="bg-white p-2 rounded-lg shadow-lg">
+          <div className="bg-white p-2 rounded-lg">
             <ShieldCheck className="w-6 h-6 text-blue-700" />
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tighter leading-none">RECEPTOR ISRAEL</h1>
-            <p className="text-[10px] text-blue-200 font-bold uppercase tracking-[0.2em] mt-1">Sinais em Tempo Real</p>
+            <p className="text-[10px] text-blue-200 font-bold uppercase tracking-[0.2em] mt-1">Monitor de Sinais em Tempo Real</p>
           </div>
         </div>
         
         <div className="flex items-center gap-6">
           <div className="hidden lg:flex flex-col items-end">
-            <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-1">Link do Webhook</span>
-            <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded border border-white/20">
-              <code className="text-[11px] font-mono text-white">/api/israel</code>
+            <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mb-1">Status do Receptor</span>
+            <div className="flex items-center gap-2">
+              <code className="text-[11px] font-mono text-white bg-white/10 px-2 py-1 rounded">/api/israel</code>
             </div>
           </div>
           
           <div className="flex items-center">
             {isConnected ? (
-              <Badge className="bg-emerald-500 text-white border-none flex gap-2 items-center px-4 py-1.5 font-bold shadow-md">
+              <Badge className="bg-emerald-500 text-white border-none flex gap-2 items-center px-4 py-1.5 font-bold">
                 <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
-                ONLINE
+                SISTEMA ONLINE
               </Badge>
             ) : (
               <Badge variant="destructive" className="flex gap-2 items-center px-4 py-1.5 font-bold animate-pulse">
-                <WifiOff className="w-3 h-3" /> DESCONECTADO
+                <WifiOff className="w-3 h-3" /> SEM CONEXÃO
               </Badge>
             )}
           </div>
 
           <Button variant="ghost" size="sm" onClick={handleClear} className="text-white hover:bg-white/20 font-bold border border-white/10">
-            <Trash2 className="w-4 h-4 mr-2" /> LIMPAR TUDO
+            <Trash2 className="w-4 h-4 mr-2" /> LIMPAR TELA
           </Button>
         </div>
       </header>
@@ -170,7 +169,7 @@ export function WebhookDashboard() {
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Pesquisar nos pacotes..." 
+                placeholder="Filtrar pacotes capturados..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-slate-50 border-slate-200 rounded-lg py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none border transition-all"
@@ -183,8 +182,8 @@ export function WebhookDashboard() {
               {filteredHistory.length === 0 ? (
                 <div className="py-24 text-center px-8 border-2 border-dashed border-slate-200 rounded-xl m-4">
                   <Activity className="w-12 h-12 text-blue-200 mx-auto mb-4 animate-pulse" />
-                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Aguardando Sinais...</p>
-                  <p className="text-[12px] text-slate-400 mt-2">Envie dados para o endpoint para vê-los aqui.</p>
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Escutando Sinais...</p>
+                  <p className="text-[12px] text-slate-400 mt-2">As requisições enviadas para o endpoint aparecerão aqui.</p>
                 </div>
               ) : (
                 filteredHistory.map((entry) => (
@@ -199,7 +198,7 @@ export function WebhookDashboard() {
                   >
                     <div className="flex justify-between items-center mb-2">
                       <span className={`text-[10px] font-black uppercase tracking-widest ${selectedEntry?.firestoreId === entry.firestoreId ? 'text-blue-200' : 'text-blue-600'}`}>
-                        CAPTURADO
+                        PACOTE RECEBIDO
                       </span>
                       <div className="flex items-center gap-1.5">
                         <Clock className={`w-3 h-3 ${selectedEntry?.firestoreId === entry.firestoreId ? 'text-blue-300' : 'text-slate-400'}`} />
@@ -209,7 +208,7 @@ export function WebhookDashboard() {
                       </div>
                     </div>
                     <div className="text-sm font-black truncate font-mono">
-                      {entry.payload?.codigo || entry.payload?.code || entry.payload?.id || "PACOTE_GENERICO"}
+                      {entry.payload?.codigo || entry.payload?.id || "SINAL_ESTATICO"}
                     </div>
                   </button>
                 ))
@@ -225,9 +224,9 @@ export function WebhookDashboard() {
               <div className="p-5 border-b bg-slate-50 flex justify-between items-center px-8">
                 <div className="flex items-center gap-4">
                   <div className="w-3 h-3 rounded-full bg-blue-700 animate-ping"></div>
-                  <span className="text-xs font-black text-blue-900 uppercase tracking-widest">DETALHES DO PACOTE</span>
+                  <span className="text-xs font-black text-blue-900 uppercase tracking-widest">INSPEÇÃO DE DADOS</span>
                 </div>
-                <Badge variant="outline" className="border-blue-200 text-blue-700 font-black text-[10px]">CRIPTOGRAFIA ATIVA</Badge>
+                <Badge variant="outline" className="border-blue-200 text-blue-700 font-black text-[10px]">CONTEÚDO TEMPORÁRIO</Badge>
               </div>
 
               <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
@@ -239,7 +238,7 @@ export function WebhookDashboard() {
                         <CardHeader className="py-4 px-6 bg-blue-50 border-b border-blue-100">
                           <div className="flex items-center gap-3 text-blue-800">
                             <Zap className="w-5 h-5 fill-blue-800" />
-                            <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em]">Interpretação por IA</CardTitle>
+                            <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em]">Relatório da IA</CardTitle>
                           </div>
                         </CardHeader>
                         <CardContent className="p-6">
@@ -260,16 +259,16 @@ export function WebhookDashboard() {
                             <Button 
                               onClick={() => handleAI(selectedEntry)} 
                               disabled={!!isInterpreting}
-                              className="w-full bg-blue-700 hover:bg-blue-800 text-white font-black py-6 rounded-xl shadow-lg transition-all"
+                              className="w-full bg-blue-700 hover:bg-blue-800 text-white font-black py-6 rounded-xl shadow-lg"
                             >
-                              {isInterpreting ? "PROCESSANDO..." : "ANALISAR COM INTELIGÊNCIA ARTIFICIAL"}
+                              {isInterpreting ? "PROCESSANDO..." : "ANALISAR SINAL COM IA"}
                             </Button>
                           )}
                         </CardContent>
                       </Card>
 
                       <div className="space-y-4">
-                        <h4 className="text-[11px] font-black text-blue-900/40 uppercase tracking-[0.3em] px-1">Cabeçalhos da Requisição</h4>
+                        <h4 className="text-[11px] font-black text-blue-900/40 uppercase tracking-[0.3em] px-1">Cabeçalhos de Entrada</h4>
                         <div className="bg-slate-50 rounded-2xl border-2 border-slate-100 overflow-hidden text-[12px] font-mono shadow-inner">
                           {Object.entries(selectedEntry.headers).map(([k, v]) => (
                             <div key={k} className="p-4 border-b border-slate-100 flex flex-col last:border-0 hover:bg-blue-50/50 transition-colors">
@@ -288,7 +287,7 @@ export function WebhookDashboard() {
                   <div className="p-4 border-b border-white/10 bg-black/50 flex items-center justify-between px-8">
                     <div className="flex items-center gap-3">
                       <Terminal className="w-5 h-5 text-blue-400" />
-                      <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">Conteúdo do Payload</span>
+                      <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">Console de Saída</span>
                     </div>
                   </div>
                   <ScrollArea className="flex-1">
@@ -305,14 +304,13 @@ export function WebhookDashboard() {
                 <Activity className="w-16 h-16" />
                 <div className="absolute inset-0 rounded-full border-4 border-blue-700/20 animate-ping"></div>
               </div>
-              <h2 className="text-3xl font-black text-blue-900 mb-4 tracking-tighter uppercase">SISTEMA ATIVO</h2>
-              <p className="text-slate-400 max-w-md text-sm leading-relaxed font-medium">
-                Aguardando sinais externos. Envie suas requisições para:
-                <br/>
+              <h2 className="text-3xl font-black text-blue-900 mb-4 tracking-tighter uppercase">RECEPTOR ATIVO</h2>
+              <div className="text-slate-400 max-w-md text-sm leading-relaxed font-medium">
+                O sistema está escutando sinais externos de alta prioridade.
                 <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-100 rounded-2xl">
                   <code className="text-blue-700 font-black text-lg break-all">/api/israel</code>
                 </div>
-              </p>
+              </div>
             </div>
           )}
         </main>
