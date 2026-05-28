@@ -7,7 +7,7 @@ let signals: any[] = [];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
 };
 
@@ -74,4 +74,9 @@ export async function GET() {
     total: mapped.length,
     emails: mapped
   }, { status: 200, headers: corsHeaders });
+}
+
+export async function DELETE() {
+  signals = [];
+  return NextResponse.json({ ok: true, message: "Histórico limpo no servidor" }, { status: 200, headers: corsHeaders });
 }

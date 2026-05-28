@@ -18,8 +18,7 @@ import { cn } from "@/lib/utils";
 
 interface WebhookEntry {
   id: string;
-  timestamp: string; // ISO string de quando foi recebido no servidor
-  localArrival: number; // Timestamp ms de quando chegou no cliente
+  timestamp: string; // ISO string do momento da criação no servidor
   payload: {
     Produto?: string;
     Assunto?: string;
@@ -38,14 +37,14 @@ export function WebhookDashboard() {
   // Inicialização e recuperação do LocalStorage
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("israel_mobile_v3");
+    const saved = localStorage.getItem("israel_mobile_v4");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Filtrar expirados logo no carregamento
         const currentTime = Date.now();
+        // Filtra os que já expiraram com base no timestamp original do servidor
         const valid = parsed.filter((item: WebhookEntry) => 
-          (currentTime - (item.localArrival || new Date(item.timestamp).getTime())) < EXPIRATION_MS
+          (currentTime - new Date(item.timestamp).getTime()) < EXPIRATION_MS
         );
         setHistory(valid);
       } catch (e) {
@@ -72,12 +71,14 @@ export function WebhookDashboard() {
         const data = await res.json();
         if (data.ok && data.emails) {
           const currentTime = Date.now();
-          const newSignals: WebhookEntry[] = data.emails.map((e: any) => ({
-            id: e.id,
-            timestamp: e.receivedAt,
-            localArrival: currentTime, // Marcamos o momento que o cliente "viu" o sinal
-            payload: e.debug.payload
-          }));
+          const newSignals: WebhookEntry[] = data.emails
+            .map((e: any) => ({
+              id: e.id,
+              timestamp: e.receivedAt,
+              payload: e.debug.payload
+            }))
+            // Filtra sinais que já chegariam expirados (segurança extra)
+            .filter((s: WebhookEntry) => (currentTime - new Date(s.timestamp).getTime()) < EXPIRATION_MS);
 
           setHistory(prev => {
             const existingIds = new Set(prev.map(s => s.id));
@@ -85,8 +86,7 @@ export function WebhookDashboard() {
             
             if (fresh.length > 0) {
               const updated = [...fresh, ...prev];
-              // Persiste no localStorage (o filtro de expiração ocorrerá no próximo passo)
-              localStorage.setItem("israel_mobile_v3", JSON.stringify(updated));
+              localStorage.setItem("israel_mobile_v4", JSON.stringify(updated));
               return updated;
             }
             return prev;
@@ -102,13 +102,12 @@ export function WebhookDashboard() {
   // Lógica de Expiração em tempo real (Auto-remoção)
   const activeHistory = useMemo(() => {
     const filtered = history.filter(item => {
-      const startTime = item.localArrival || new Date(item.timestamp).getTime();
+      const startTime = new Date(item.timestamp).getTime();
       return (now - startTime) < EXPIRATION_MS;
     });
 
-    // Se o tamanho mudou, atualizamos o localStorage para manter sincronizado
     if (filtered.length !== history.length) {
-      localStorage.setItem("israel_mobile_v3", JSON.stringify(filtered));
+      localStorage.setItem("israel_mobile_v4", JSON.stringify(filtered));
     }
 
     return filtered;
@@ -116,8 +115,9 @@ export function WebhookDashboard() {
 
   const latestEntry = activeHistory[0];
 
-  const formatTimeLeft = (localArrival: number) => {
-    const diff = EXPIRATION_MS - (now - localArrival);
+  const formatTimeLeft = (timestamp: string) => {
+    const startTime = new Date(timestamp).getTime();
+    const diff = EXPIRATION_MS - (now - startTime);
     if (diff <= 0) return "EXPIRADO";
     const minutes = Math.floor(diff / 60000);
     const seconds = Math.floor((diff % 60000) / 1000);
@@ -134,10 +134,23 @@ export function WebhookDashboard() {
     });
   };
 
-  const handleClear = () => {
-    setHistory([]);
-    localStorage.removeItem("israel_mobile_v3");
-    toast({ title: "Histórico Limpo" });
+  const handleClear = async () => {
+    try {
+      // Limpa no servidor para não voltar no próximo polling
+      await fetch("/api/israel", { method: "DELETE" });
+      
+      // Limpa localmente
+      setHistory([]);
+      localStorage.removeItem("israel_mobile_v4");
+      
+      toast({ 
+        title: "HISTÓRICO LIMPO",
+        description: "Todos os sinais foram removidos.",
+        className: "bg-blue-600 border-none text-white font-black rounded-2xl",
+      });
+    } catch (error) {
+      toast({ title: "Erro ao limpar", variant: "destructive" });
+    }
   };
 
   if (!mounted) return null;
@@ -159,7 +172,7 @@ export function WebhookDashboard() {
             <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Sinais em Tempo Real</span>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={handleClear} className="text-slate-300 hover:text-red-500 rounded-full">
+        <Button variant="ghost" size="icon" onClick={handleClear} className="text-slate-300 hover:text-red-500 rounded-full transition-colors">
           <Trash2 className="w-5 h-5" />
         </Button>
       </header>
@@ -174,7 +187,7 @@ export function WebhookDashboard() {
           </span>
         </div>
 
-        {/* Card Principal: O Último Código */}
+        {/* Card Principal */}
         <div className="space-y-4">
           <Card className="bg-white border-none rounded-[40px] shadow-[0_30px_60px_rgba(0,0,0,0.05)] overflow-hidden">
             <CardContent className="p-7 space-y-6">
@@ -184,7 +197,7 @@ export function WebhookDashboard() {
                     <div className="absolute top-4 right-6 flex items-center gap-1.5 bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-200 shadow-sm">
                       <Timer className="w-3 h-3 text-blue-600" />
                       <span className="text-[10px] font-black text-blue-600 font-mono">
-                        {formatTimeLeft(latestEntry.localArrival)}
+                        {formatTimeLeft(latestEntry.timestamp)}
                       </span>
                     </div>
                     
@@ -257,7 +270,7 @@ export function WebhookDashboard() {
                         <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
                           <Clock className="w-2.5 h-2.5 text-blue-400" />
                           <span className="text-[9px] font-mono font-bold text-blue-400">
-                            {formatTimeLeft(entry.localArrival)}
+                            {formatTimeLeft(entry.timestamp)}
                           </span>
                         </div>
                       </div>
