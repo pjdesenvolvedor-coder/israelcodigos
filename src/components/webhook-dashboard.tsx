@@ -37,7 +37,6 @@ export function WebhookDashboard() {
   const [now, setNow] = useState<number>(Date.now());
   const [accessExpiresAt, setAccessExpiresAt] = useState<string | null>(null);
 
-  // Inicialização
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem("israel_mobile_v4");
@@ -58,7 +57,6 @@ export function WebhookDashboard() {
     }
   }, []);
 
-  // Timer global
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(Date.now());
@@ -66,7 +64,6 @@ export function WebhookDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Busca de sinais
   useEffect(() => {
     if (!mounted) return;
 
@@ -103,7 +100,6 @@ export function WebhookDashboard() {
     return () => clearInterval(interval);
   }, [mounted]);
 
-  // Lógica de Expiração do Sinal
   const activeHistory = useMemo(() => {
     const filtered = history.filter(item => {
       const startTime = new Date(item.timestamp).getTime();
@@ -117,7 +113,6 @@ export function WebhookDashboard() {
     return filtered;
   }, [history, now]);
 
-  // Lógica de Expiração do ACESSO (30 dias)
   const isAccessExpired = useMemo(() => {
     if (!accessExpiresAt) return false;
     return now > new Date(accessExpiresAt).getTime();
@@ -173,7 +168,6 @@ export function WebhookDashboard() {
   return (
     <div className="h-screen bg-slate-50 text-slate-900 font-sans max-w-md mx-auto flex flex-col overflow-hidden relative">
       
-      {/* Overlay de Acesso Expirado */}
       {isAccessExpired && (
         <div className="fixed inset-0 z-[200] backdrop-blur-xl bg-white/40 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
           <div className="bg-red-500 p-5 rounded-[2.5rem] shadow-2xl shadow-red-200 mb-6">
@@ -193,7 +187,6 @@ export function WebhookDashboard() {
         </div>
       )}
 
-      {/* Header Fixo */}
       <header className="p-6 flex items-center justify-between bg-white/80 backdrop-blur-md shrink-0 z-50 border-b border-blue-50/50">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2.5 rounded-2xl shadow-lg shadow-blue-200">
@@ -202,9 +195,7 @@ export function WebhookDashboard() {
           <div>
             <h1 className="text-xl font-black tracking-tighter text-blue-900 leading-none uppercase">ISRAEL05</h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Sinais</span>
-              <div className="h-1 w-1 rounded-full bg-blue-200" />
-              <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">{daysRemaining} dias restantes</span>
+              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Sinais Ativos</span>
             </div>
           </div>
         </div>
@@ -223,21 +214,18 @@ export function WebhookDashboard() {
         </div>
       </header>
 
-      {/* Área de Conteúdo */}
       <main className={cn(
         "flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-hide transition-all duration-700",
         isAccessExpired && "blur-sm grayscale opacity-50 pointer-events-none"
       )}>
         
-        {/* Status */}
         <div className="flex items-center justify-center gap-2 bg-white shadow-sm border border-blue-100 py-2.5 px-5 rounded-full mx-auto w-fit">
           <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
           <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
-            OPERACIONAL • {new Date(now).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}
+            {daysRemaining} DIAS RESTANTES DE ACESSO
           </span>
         </div>
 
-        {/* Card Principal */}
         <div className="space-y-4">
           <Card className="bg-white border-none rounded-[40px] shadow-[0_30px_60px_rgba(0,0,0,0.05)] overflow-hidden">
             <CardContent className="p-7 space-y-6">
@@ -293,7 +281,6 @@ export function WebhookDashboard() {
           </Card>
         </div>
 
-        {/* Histórico */}
         {activeHistory.length > 1 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-3">
