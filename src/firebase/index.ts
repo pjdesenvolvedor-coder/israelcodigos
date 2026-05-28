@@ -1,3 +1,4 @@
+
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
@@ -21,7 +22,20 @@ export function initializeFirebase() {
     if (getApps().length > 0) {
       app = getApp();
     } else {
-      app = initializeApp(firebaseConfig);
+      // Verifica se temos ao menos o projectId para tentar inicializar
+      if (firebaseConfig.projectId) {
+        app = initializeApp(firebaseConfig);
+      } else {
+        // Fallback para evitar erro crítico de inicialização
+        app = initializeApp({
+          apiKey: "dummy",
+          authDomain: "dummy",
+          projectId: "dummy-project",
+          storageBucket: "dummy",
+          messagingSenderId: "dummy",
+          appId: "dummy"
+        });
+      }
     }
     firestore = getFirestore(app);
     auth = getAuth(app);

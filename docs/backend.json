@@ -3,20 +3,18 @@
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Registros de sinais recebidos via webhook",
+      "description": "Sinais recebidos",
       "type": "object",
       "properties": {
         "timestamp": { "type": "string" },
         "payload": { "type": "object" },
-        "createdAt": { "type": "string" },
-        "method": { "type": "string" },
-        "headers": { "type": "object" }
+        "createdAt": { "type": "string" }
       },
       "required": ["timestamp", "payload", "createdAt"]
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Códigos de acesso para o sistema",
+      "description": "Códigos de acesso",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
@@ -33,11 +31,11 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção de webhooks recebidos"
+      "description": "Coleção de webhooks"
     },
     "/access_codes/{codeId}": {
       "schema": "AccessCode",
-      "description": "Coleção de códigos de acesso"
+      "description": "Coleção de códigos"
     }
   }
 }
