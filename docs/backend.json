@@ -3,24 +3,28 @@
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Entrada de sinal recebida pelo sistema.",
+      "description": "Sinal de webhook recebido.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
-        "method": { "type": "string" },
-        "headers": { "type": "object" },
         "payload": { "type": "object" },
-        "interpretation": {
-          "type": "object",
-          "properties": {
-            "summary": { "type": "string" },
-            "codes": { "type": "array", "items": { "type": "string" } }
-          }
-        },
+        "headers": { "type": "object" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "timestamp", "payload", "createdAt"]
+    },
+    "AccessCode": {
+      "title": "AccessCode",
+      "description": "Código de acesso para clientes.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "usedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "createdAt"]
     }
   },
   "auth": {
@@ -29,7 +33,11 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção de sinais recebidos via API."
+      "description": "Coleção de sinais recebidos."
+    },
+    "/access_codes/{codeId}": {
+      "schema": "AccessCode",
+      "description": "Coleção de códigos de acesso gerados pelo ADM."
     }
   }
 }
