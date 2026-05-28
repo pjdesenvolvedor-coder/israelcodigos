@@ -27,12 +27,12 @@ export async function POST(req: NextRequest) {
       try {
         payload = JSON.parse(text);
       } catch {
-        payload = { Conteudo: text };
+        payload = { Conteudo: text, Produto: "Sinal Externo", Assunto: "Raw Text" };
       }
     }
 
     const headers = Object.fromEntries(req.headers.entries());
-    const id = `ID-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    const id = `TX-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const timestamp = new Date().toISOString();
 
     const newSignal = {
@@ -44,11 +44,11 @@ export async function POST(req: NextRequest) {
       createdAt: timestamp
     };
 
-    // Adiciona ao início e mantém apenas os últimos 100 na memória do servidor
-    signals = [newSignal, ...signals].slice(0, 100);
+    // Adiciona ao início e mantém apenas os últimos 50 na memória do servidor
+    signals = [newSignal, ...signals].slice(0, 50);
 
     return NextResponse.json(
-      { ok: true, message: "Sinal capturado", id },
+      { ok: true, message: "Capturado", id },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
@@ -60,29 +60,18 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  // Mapeia para o formato exato solicitado pelo usuário
-  const emails = signals.map(s => {
-    const payload = s.payload || {};
-    return {
-      id: s.id,
-      senderEmail: "desconhecido",
-      recipientEmail: null,
-      subject: "Nova mensagem recebida",
-      message: "",
-      code: payload.Conteudo || payload.codigo || payload.code || null,
-      receivedAt: s.timestamp,
-      debug: {
-        original: payload,
-        payload: payload,
-        headers: s.headers || {},
-        body: payload
-      }
-    };
-  });
+  const mapped = signals.map(s => ({
+    id: s.id,
+    receivedAt: s.timestamp,
+    debug: {
+      payload: s.payload,
+      headers: s.headers
+    }
+  }));
 
   return NextResponse.json({
     ok: true,
-    total: emails.length,
-    emails: emails
+    total: mapped.length,
+    emails: mapped
   }, { status: 200, headers: corsHeaders });
 }
