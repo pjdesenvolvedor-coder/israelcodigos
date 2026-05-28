@@ -47,6 +47,7 @@ export function WebhookDashboard() {
   const [isInterpreting, setIsInterpreting] = useState<string | null>(null);
   const [status, setStatus] = useState<"online" | "connecting" | "offline">("connecting");
 
+  // Evita erros de hidratação garantindo que o componente só renderize no cliente
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -78,7 +79,7 @@ export function WebhookDashboard() {
       setHistory(entries);
       setStatus("online");
       
-      // Notifica novo sinal
+      // Notifica novo sinal se não for do cache
       if (!snapshot.metadata.fromCache && snapshot.docChanges().some(c => c.type === "added")) {
         toast({
           title: "SINAL CAPTURADO",
@@ -135,6 +136,7 @@ export function WebhookDashboard() {
     }
   };
 
+  // Se não estiver montado, não renderiza nada para evitar erro de hidratação
   if (!mounted) return null;
 
   return (
@@ -330,9 +332,9 @@ export function WebhookDashboard() {
                 <div className="max-w-md bg-red-50 border-2 border-red-100 p-8 rounded-3xl shadow-lg relative z-10">
                   <Database className="w-10 h-10 text-red-500 mx-auto mb-4" />
                   <h2 className="text-xl font-black text-red-900 mb-2 uppercase">Banco Desconectado</h2>
-                  <p className="text-sm text-red-700 mb-6 font-medium">
+                  <div className="text-sm text-red-700 mb-6 font-medium">
                     O receptor não consegue sincronizar em tempo real porque o Firestore não foi criado ou está inacessível.
-                  </p>
+                  </div>
                   <Button className="bg-red-600 hover:bg-red-700 text-white font-bold w-full" asChild>
                     <a href="#" onClick={() => window.location.reload()}>RECONECTAR SISTEMA</a>
                   </Button>
@@ -340,9 +342,9 @@ export function WebhookDashboard() {
               ) : (
                 <div className="max-w-md relative z-10">
                   <h2 className="text-3xl font-black text-blue-900 mb-4 tracking-tight uppercase leading-none">Aguardando Sinais</h2>
-                  <p className="text-slate-500 text-sm leading-relaxed font-medium mb-10">
+                  <div className="text-slate-500 text-sm leading-relaxed font-medium mb-10">
                     O sistema está ativo e operando em frequência máxima. Qualquer sinal enviado para o endpoint abaixo aparecerá aqui instantaneamente.
-                  </p>
+                  </div>
                   <div className="p-8 bg-blue-50 border-2 border-dashed border-blue-200 rounded-3xl group hover:border-blue-400 transition-all cursor-pointer">
                     <code className="text-blue-700 font-black text-xl break-all">/api/israel</code>
                     <div className="flex items-center justify-center gap-2 mt-4 text-blue-400">

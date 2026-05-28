@@ -5,6 +5,7 @@ import { firebaseConfig } from "@/firebase/config";
 
 export const dynamic = 'force-dynamic';
 
+// Inicialização segura para o ambiente de API
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão para o Firestore (Relay) - SEM ESPERAR AWAIT para resposta rápida
+    // Transmissão para o Firestore (Relay) - SEM ESPERAR AWAIT para resposta ultra-rápida
     addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
@@ -46,10 +47,11 @@ export async function POST(req: NextRequest) {
     }).catch(err => console.error("Erro no relay do sinal:", err));
 
     return NextResponse.json(
-      { ok: true, message: "Sinal capturado" },
+      { ok: true, message: "Sinal capturado com sucesso" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
+    // Retorna sucesso silencioso mesmo em erro para não travar o remetente
     return NextResponse.json(
       { ok: true, processed: true },
       { status: 200, headers: corsHeaders }
@@ -94,7 +96,7 @@ export async function GET() {
       ok: false,
       total: 0,
       emails: [],
-      error: "Erro ao buscar sinais"
+      error: "Erro ao buscar sinais no banco"
     }, { status: 200, headers: corsHeaders });
   }
 }
