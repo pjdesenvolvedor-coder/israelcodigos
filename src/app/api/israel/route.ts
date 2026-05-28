@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
-// Headers para permitir TUDO (CORS irrestrito)
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -38,27 +37,28 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (e) {
-      payload = { erro: "Conteúdo inválido", detalhes: String(e) };
+      payload = { status: "recebido", info: "conteudo_nao_json" };
     }
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Envia para o Firestore para o Dashboard capturar
-    // Não usamos 'await' na resposta para não travar o remetente (evita timeout)
+    // Transmissão para o Dashboard via Firestore (Túnel de Tempo Real)
+    // Não usamos await para responder imediatamente ao remetente
     addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
       headers: headers,
       createdAt: serverTimestamp(),
-    }).catch(e => console.error("Erro Firestore:", e));
+    }).catch(e => console.error("Erro no Túnel:", e));
 
     return NextResponse.json(
-      { status: "sucesso", mensagem: "Sinal capturado" },
+      { status: "sucesso", sinal: "capturado" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
+    // Retorna 200 mesmo em erro para não travar o remetente
     return NextResponse.json(
-      { status: "erro", mensagem: "Processado com ressalvas" },
+      { status: "ok", aviso: "processado_com_ressalvas" },
       { status: 200, headers: corsHeaders }
     );
   }
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   return NextResponse.json(
-    { status: "online", endpoint: "/api/israel" },
+    { servico: "RECEPTOR ISRAEL", status: "online", endpoint: "/api/israel" },
     { status: 200, headers: corsHeaders }
   );
 }
