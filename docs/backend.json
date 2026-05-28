@@ -3,27 +3,24 @@
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Sinal de webhook recebido do sistema externo.",
+      "description": "Sinal externo.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" },
+        "timestamp": { "type": "string" },
         "payload": { "type": "object" },
-        "headers": { "type": "object" },
-        "method": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string" }
       },
-      "required": ["id", "timestamp", "payload", "createdAt"]
+      "required": ["timestamp", "payload", "createdAt"]
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Código de acesso para clientes com validade de 30 dias.",
+      "description": "Código de acesso.",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "usedAt": { "type": "string", "format": "date-time" },
-        "expiresAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string" },
+        "usedAt": { "type": "string" },
+        "expiresAt": { "type": "string" }
       },
       "required": ["code", "createdAt"]
     }
@@ -34,11 +31,11 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção de sinais recebidos via API."
+      "description": "Coleção de webhooks"
     },
     "/access_codes/{codeId}": {
       "schema": "AccessCode",
-      "description": "Coleção de códigos de acesso gerados e validados."
+      "description": "Coleção de códigos"
     }
   }
 }
