@@ -3,7 +3,7 @@
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Logs de sinais recebidos via webhook",
+      "description": "Registros de sinais recebidos",
       "type": "object",
       "properties": {
         "timestamp": { "type": "string", "format": "date-time" },
@@ -14,7 +14,7 @@
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Códigos de acesso para clientes",
+      "description": "Códigos de acesso de clientes",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
@@ -35,7 +35,7 @@
     },
     "/access_codes/{codeId}": {
       "schema": "AccessCode",
-      "description": "Coleção de códigos de acesso de 30 dias"
+      "description": "Coleção de códigos de acesso"
     }
   }
 }
