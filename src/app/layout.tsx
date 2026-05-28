@@ -1,9 +1,10 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CÓDIGOS ISRAEL | Receptor Webhook',
-  description: 'Monitoramento de sinais e códigos temporários em tempo real.',
+  title: 'RECEPTOR ISRAEL | Monitor de Sinais',
+  description: 'Sistema em tempo real para monitoramento de códigos e webhooks.',
 };
 
 export default function RootLayout({
