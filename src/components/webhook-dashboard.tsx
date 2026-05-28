@@ -69,7 +69,7 @@ export function WebhookDashboard() {
       if (!snapshot.metadata.hasPendingWrites && snapshot.docChanges().some(c => c.type === "added")) {
         toast({
           title: "SINAL CAPTURADO",
-          description: "Novo código de acesso detectado.",
+          description: "Novo código detectado no sistema.",
           className: "bg-blue-600 text-white border-none font-bold",
         });
       }
@@ -133,7 +133,7 @@ export function WebhookDashboard() {
           </div>
           <div>
             <h1 className="text-xl font-black tracking-tight leading-none uppercase">RECEPTOR ISRAEL</h1>
-            <p className="text-[10px] text-blue-100 font-bold uppercase tracking-[0.2em] mt-1 opacity-80">Monitor de Códigos Temporários</p>
+            <p className="text-[10px] text-blue-100 font-bold uppercase tracking-[0.2em] mt-1 opacity-80">Monitor de Códigos em Tempo Real</p>
           </div>
         </div>
         
@@ -171,7 +171,7 @@ export function WebhookDashboard() {
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Filtrar códigos capturados..." 
+                placeholder="Filtrar sinais capturados..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-slate-50 border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none border transition-all"
@@ -184,8 +184,8 @@ export function WebhookDashboard() {
               {filteredHistory.length === 0 ? (
                 <div className="py-20 text-center px-8 border-2 border-dashed border-slate-200 rounded-2xl m-2">
                   <Activity className="w-12 h-12 text-blue-100 mx-auto mb-4" />
-                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Aguardando Sinais...</p>
-                  <p className="text-[12px] text-slate-400 mt-2">Envie POST para /api/israel</p>
+                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Aguardando Sinais...</div>
+                  <div className="text-[12px] text-slate-400 mt-2">Envie POST para /api/israel</div>
                 </div>
               ) : (
                 filteredHistory.map((entry) => (
@@ -273,7 +273,7 @@ export function WebhookDashboard() {
                       <div className="space-y-4">
                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Meta-dados do Sinal</h4>
                         <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden text-[12px] font-mono">
-                          {Object.entries(selectedEntry.headers).slice(0, 8).map(([k, v]) => (
+                          {Object.entries(selectedEntry.headers).slice(0, 10).map(([k, v]) => (
                             <div key={k} className="p-4 border-b border-slate-100 flex flex-col last:border-0 hover:bg-blue-50/30 transition-colors">
                               <span className="text-blue-700 font-black uppercase text-[9px] mb-1">{k}</span>
                               <span className="text-slate-500 break-all">{String(v)}</span>
@@ -306,10 +306,10 @@ export function WebhookDashboard() {
                 <Activity className="w-10 h-10" />
                 <div className="absolute inset-0 rounded-full border-2 border-blue-600/10 animate-ping"></div>
               </div>
-              <h2 className="text-2xl font-black text-blue-900 mb-3 tracking-tight uppercase">SISTEMA AGUARDANDO</h2>
+              <h2 className="text-2xl font-black text-blue-900 mb-3 tracking-tight uppercase">RECEPTOR ATIVO</h2>
               <div className="text-slate-400 max-w-sm text-sm leading-relaxed font-medium">
-                Envie suas requisições para o endpoint abaixo para iniciar o monitoramento em tempo real.
-                <div className="mt-6 p-4 bg-blue-50/50 border-2 border-blue-100 rounded-2xl">
+                O sistema está monitorando o endpoint abaixo. Qualquer sinal enviado para lá aparecerá aqui instantaneamente.
+                <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-100 rounded-2xl">
                   <code className="text-blue-700 font-black text-base break-all">/api/israel</code>
                 </div>
               </div>

@@ -5,7 +5,6 @@ import { firebaseConfig } from "@/firebase/config";
 
 export const dynamic = 'force-dynamic';
 
-// Inicialização segura do Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
@@ -32,21 +31,20 @@ export async function POST(req: NextRequest) {
       try {
         payload = JSON.parse(text);
       } catch {
-        payload = { conteudo: text };
+        payload = { Conteudo: text };
       }
     }
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão para o Dashboard (Firestore como túnel)
+    // Transmissão em tempo real via Firestore (Relay)
     addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
       headers: headers,
       createdAt: serverTimestamp(),
-    }).catch(err => console.error("Erro no túnel:", err));
+    }).catch(err => console.error("Erro no relay:", err));
 
-    // Resposta imediata para evitar timeout
     return NextResponse.json(
       { status: "success", message: "Sinal capturado" },
       { status: 200, headers: corsHeaders }
