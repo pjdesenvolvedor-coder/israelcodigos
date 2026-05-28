@@ -1,4 +1,3 @@
-
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
@@ -18,12 +17,16 @@ let firestore: Firestore;
 let auth: Auth;
 
 export function initializeFirebase() {
-  if (getApps().length > 0) {
-    app = getApp();
-  } else {
-    app = initializeApp(firebaseConfig);
+  try {
+    if (getApps().length > 0) {
+      app = getApp();
+    } else {
+      app = initializeApp(firebaseConfig);
+    }
+    firestore = getFirestore(app);
+    auth = getAuth(app);
+  } catch (error) {
+    console.error("Erro ao inicializar Firebase:", error);
   }
-  firestore = getFirestore(app);
-  auth = getAuth(app);
   return { app, firestore, auth };
 }

@@ -1,6 +1,5 @@
 'use client';
 
-// Configuração básica preparada para receber as chaves automáticas do Firebase
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSy-placeholder",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
