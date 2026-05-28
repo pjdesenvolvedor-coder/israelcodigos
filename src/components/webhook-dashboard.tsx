@@ -1,22 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Copy,
   Trash2,
   Smartphone,
   ShieldCheck,
   Zap,
-  Clock
+  Clock,
+  Timer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface WebhookEntry {
   id: string;
-  timestamp: string;
+  timestamp: string; // ISO string de quando foi recebido no servidor
+  localArrival: number; // Timestamp ms de quando chegou no cliente
   payload: {
     Produto?: string;
     Assunto?: string;
@@ -24,24 +27,42 @@ interface WebhookEntry {
   };
 }
 
+const EXPIRATION_MS = 15 * 60 * 1000; // 15 minutos
+
 export function WebhookDashboard() {
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [history, setHistory] = useState<WebhookEntry[]>([]);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [now, setNow] = useState<number>(Date.now());
 
+  // Inicialização e recuperação do LocalStorage
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("israel_mobile_v2");
+    const saved = localStorage.getItem("israel_mobile_v3");
     if (saved) {
       try {
-        setHistory(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Filtrar expirados logo no carregamento
+        const currentTime = Date.now();
+        const valid = parsed.filter((item: WebhookEntry) => 
+          (currentTime - (item.localArrival || new Date(item.timestamp).getTime())) < EXPIRATION_MS
+        );
+        setHistory(valid);
       } catch (e) {
         console.error("Erro ao carregar LocalStorage");
       }
     }
   }, []);
 
+  // Timer global para atualizar as contagens regressivas a cada segundo
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Busca de sinais da API
   useEffect(() => {
     if (!mounted) return;
 
@@ -50,9 +71,11 @@ export function WebhookDashboard() {
         const res = await fetch("/api/israel");
         const data = await res.json();
         if (data.ok && data.emails) {
+          const currentTime = Date.now();
           const newSignals: WebhookEntry[] = data.emails.map((e: any) => ({
             id: e.id,
             timestamp: e.receivedAt,
+            localArrival: currentTime, // Marcamos o momento que o cliente "viu" o sinal
             payload: e.debug.payload
           }));
 
@@ -61,9 +84,9 @@ export function WebhookDashboard() {
             const fresh = newSignals.filter(s => !existingIds.has(s.id));
             
             if (fresh.length > 0) {
-              const updated = [...fresh, ...prev].slice(0, 100);
-              localStorage.setItem("israel_mobile_v2", JSON.stringify(updated));
-              setLastUpdate(new Date());
+              const updated = [...fresh, ...prev];
+              // Persiste no localStorage (o filtro de expiração ocorrerá no próximo passo)
+              localStorage.setItem("israel_mobile_v3", JSON.stringify(updated));
               return updated;
             }
             return prev;
@@ -72,137 +95,175 @@ export function WebhookDashboard() {
       } catch (e) {}
     };
 
-    const interval = setInterval(fetchSignals, 2000);
+    const interval = setInterval(fetchSignals, 3000);
     return () => clearInterval(interval);
   }, [mounted]);
 
-  const latestEntry = history[0];
+  // Lógica de Expiração em tempo real (Auto-remoção)
+  const activeHistory = useMemo(() => {
+    const filtered = history.filter(item => {
+      const startTime = item.localArrival || new Date(item.timestamp).getTime();
+      return (now - startTime) < EXPIRATION_MS;
+    });
+
+    // Se o tamanho mudou, atualizamos o localStorage para manter sincronizado
+    if (filtered.length !== history.length) {
+      localStorage.setItem("israel_mobile_v3", JSON.stringify(filtered));
+    }
+
+    return filtered;
+  }, [history, now]);
+
+  const latestEntry = activeHistory[0];
+
+  const formatTimeLeft = (localArrival: number) => {
+    const diff = EXPIRATION_MS - (now - localArrival);
+    if (diff <= 0) return "EXPIRADO";
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   const handleCopy = (code?: string) => {
     if (!code) return;
     navigator.clipboard.writeText(code);
     toast({
-      title: "Copiado!",
+      title: "COPIADO",
       description: "Código pronto para uso.",
-      className: "bg-blue-600 border-none text-white font-bold",
+      className: "bg-blue-600 border-none text-white font-black rounded-2xl",
     });
   };
 
   const handleClear = () => {
-    if (confirm("Deseja limpar todo o histórico?")) {
-      setHistory([]);
-      localStorage.removeItem("israel_mobile_v2");
-      toast({ title: "Histórico Limpo" });
-    }
+    setHistory([]);
+    localStorage.removeItem("israel_mobile_v3");
+    toast({ title: "Histórico Limpo" });
   };
 
   if (!mounted) return null;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans max-w-md mx-auto relative">
-      {/* Design Elements */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10" />
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/5 rounded-full blur-3xl -z-10" />
+    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans max-w-md mx-auto relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-blue-600/5 rounded-full blur-3xl -z-10" />
 
-      {/* Header Mobile */}
-      <header className="p-6 flex items-center justify-between">
+      {/* Header */}
+      <header className="p-6 flex items-center justify-between bg-white/40 backdrop-blur-md sticky top-0 z-50 border-b border-blue-50/50">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2.5 rounded-2xl shadow-lg shadow-blue-200">
             <Smartphone className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tighter text-blue-900 leading-none">ISRAEL</h1>
-            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Receptor de Sinais</span>
+            <h1 className="text-xl font-black tracking-tighter text-blue-900 leading-none uppercase">ISRAEL</h1>
+            <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Sinais em Tempo Real</span>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={handleClear} className="text-slate-400 hover:text-red-500 rounded-full">
+        <Button variant="ghost" size="icon" onClick={handleClear} className="text-slate-300 hover:text-red-500 rounded-full">
           <Trash2 className="w-5 h-5" />
         </Button>
       </header>
 
-      <main className="flex-1 px-5 pb-8 space-y-6">
+      <main className="flex-1 px-5 py-6 space-y-6">
         
         {/* Status Indicator */}
-        <div className="flex items-center justify-center gap-2 bg-white/50 backdrop-blur-sm py-2 px-4 rounded-full border border-blue-100 self-center mx-auto w-fit">
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-          <span className="text-[10px] font-bold text-blue-800 uppercase tracking-widest">
-            ATIVO: {lastUpdate.toLocaleTimeString()}
+        <div className="flex items-center justify-center gap-2 bg-white shadow-sm border border-blue-100 py-2.5 px-5 rounded-full mx-auto w-fit">
+          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+          <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
+            OPERACIONAL • {new Date(now).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}
           </span>
         </div>
 
-        {/* Hero Card: O Último Código */}
+        {/* Card Principal: O Último Código */}
         <div className="space-y-4">
-          <Card className="bg-white border-none rounded-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden">
+          <Card className="bg-white border-none rounded-[40px] shadow-[0_30px_60px_rgba(0,0,0,0.05)] overflow-hidden">
             <CardContent className="p-7 space-y-6">
               {latestEntry ? (
                 <>
-                  <div className="bg-blue-50 border border-blue-100 rounded-[30px] py-10 flex flex-col items-center justify-center relative overflow-hidden">
-                    <span className="text-xs font-black text-blue-400 uppercase tracking-[0.2em] mb-2">Código Detectado</span>
-                    <span className="text-6xl font-black font-mono tracking-tighter text-blue-600 animate-pulse-blue">
+                  <div className="bg-blue-50 border border-blue-100 rounded-[35px] py-10 flex flex-col items-center justify-center relative overflow-hidden">
+                    <div className="absolute top-4 right-6 flex items-center gap-1.5 bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-200 shadow-sm">
+                      <Timer className="w-3 h-3 text-blue-600" />
+                      <span className="text-[10px] font-black text-blue-600 font-mono">
+                        {formatTimeLeft(latestEntry.localArrival)}
+                      </span>
+                    </div>
+                    
+                    <span className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em] mb-2">Código Israel</span>
+                    <span className={cn(
+                      "text-7xl font-black font-mono tracking-tighter text-blue-600 transition-all",
+                      "animate-pulse-blue"
+                    )}>
                       {latestEntry.payload.Conteudo || "----"}
                     </span>
                   </div>
 
-                  <div className="space-y-4 px-1">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Assinatura:</span>
-                      <span className="text-lg font-bold text-slate-800">{latestEntry.payload.Produto || "N/A"}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Conteúdo:</span>
-                      <span className="text-sm font-medium text-slate-500">{latestEntry.payload.Assunto || "Sem descrição"}</span>
+                  <div className="space-y-4 px-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Assinatura</span>
+                        <span className="text-base font-black text-slate-800 truncate">{latestEntry.payload.Produto || "N/A"}</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 text-right">
+                        <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Conteúdo</span>
+                        <span className="text-base font-black text-slate-800 truncate">{latestEntry.payload.Assunto || "CÓDIGO"}</span>
+                      </div>
                     </div>
                   </div>
 
                   <Button 
                     onClick={() => handleCopy(latestEntry.payload.Conteudo)}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black h-16 rounded-[24px] text-lg shadow-xl shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-3"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black h-16 rounded-[24px] text-lg shadow-xl shadow-blue-100 active:scale-95 transition-all flex items-center justify-center gap-3"
                   >
                     <Copy className="w-5 h-5" />
-                    COPIAR CÓDIGO
+                    COPIAR AGORA
                   </Button>
                 </>
               ) : (
-                <div className="py-20 flex flex-col items-center justify-center text-center space-y-5">
-                  <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center">
-                    <Zap className="w-10 h-10 text-blue-200" />
+                <div className="py-24 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center animate-bounce">
+                    <Zap className="w-10 h-10 text-blue-300" />
                   </div>
-                  <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest leading-relaxed">
-                    Aguardando novo <br/> sinal de entrada...
-                  </p>
+                  <div className="space-y-1">
+                    <h2 className="text-xl font-black text-blue-900 uppercase tracking-tight">Sem Sinais</h2>
+                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] leading-relaxed">
+                      Escaneando frequências...<br/>Aguardando entrada.
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* History List */}
-        {history.length > 1 && (
+        {/* Histórico Ativo */}
+        {activeHistory.length > 1 && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between px-2">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Últimas Atividades</h3>
-              <ShieldCheck className="w-4 h-4 text-blue-100" />
+            <div className="flex items-center justify-between px-3">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Sinais Ativos</h3>
+              <ShieldCheck className="w-4 h-4 text-blue-200" />
             </div>
             
-            <ScrollArea className="h-[280px]">
-              <div className="space-y-3 pr-1">
-                {history.slice(1).map((entry) => (
+            <ScrollArea className="h-[300px]">
+              <div className="space-y-3 pr-2">
+                {activeHistory.slice(1).map((entry) => (
                   <div 
                     key={entry.id}
                     onClick={() => handleCopy(entry.payload.Conteudo)}
-                    className="bg-white p-5 rounded-[28px] border border-slate-100 flex items-center justify-between active:bg-blue-50 transition-colors shadow-sm"
+                    className="bg-white p-5 rounded-[30px] border border-blue-50 flex items-center justify-between active:bg-blue-50 transition-all shadow-sm group hover:shadow-md"
                   >
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-slate-800">{entry.payload.Produto}</span>
-                        <span className="text-[9px] text-slate-300 font-bold flex items-center gap-1">
-                          <Clock className="w-2 h-2" />
-                          {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{entry.payload.Produto}</span>
+                        <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
+                          <Clock className="w-2.5 h-2.5 text-blue-400" />
+                          <span className="text-[9px] font-mono font-bold text-blue-400">
+                            {formatTimeLeft(entry.localArrival)}
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-xl font-mono font-black text-blue-600">{entry.payload.Conteudo}</span>
+                      <span className="text-2xl font-mono font-black text-blue-600 leading-none">{entry.payload.Conteudo}</span>
                     </div>
-                    <div className="bg-slate-50 p-2.5 rounded-xl text-slate-400">
+                    <div className="bg-slate-50 p-3 rounded-2xl text-slate-300 group-active:text-blue-600">
                       <Copy className="w-4 h-4" />
                     </div>
                   </div>
@@ -214,13 +275,13 @@ export function WebhookDashboard() {
       </main>
 
       {/* Footer */}
-      <footer className="p-8 text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="h-[1px] w-8 bg-blue-100" />
-          <ShieldCheck className="w-4 h-4 text-blue-200" />
-          <div className="h-[1px] w-8 bg-blue-100" />
+      <footer className="p-8 text-center bg-white/20">
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <div className="h-[1px] w-10 bg-blue-100" />
+          <ShieldCheck className="w-5 h-5 text-blue-200" />
+          <div className="h-[1px] w-10 bg-blue-100" />
         </div>
-        <p className="text-[8px] font-black text-blue-200 uppercase tracking-[0.4em]">PROTEÇÃO TÁTICA ISRAEL</p>
+        <p className="text-[9px] font-black text-blue-200 uppercase tracking-[0.5em]">PROTEÇÃO TÁTICA ISRAEL</p>
       </footer>
     </div>
   );
