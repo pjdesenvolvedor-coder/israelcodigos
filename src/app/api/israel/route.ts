@@ -3,7 +3,7 @@ import { initializeApp, getApps } from "firebase/app";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseConfig } from "@/firebase/config";
 
-// Inicialização segura do Firebase para o ambiente de servidor
+// Inicialização segura para ambiente Serverless
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
@@ -14,44 +14,38 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400",
 };
 
-/**
- * Manipula a requisição OPTIONS para evitar erros de CORS.
- */
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: corsHeaders,
-  });
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
 /**
- * Endpoint de recebimento de Webhooks (Relay rápido).
+ * Endpoint /api/israel
+ * Recebe o Webhook e "pulsa" no Firestore para o Dashboard exibir em tempo real.
  */
 export async function POST(req: NextRequest) {
   try {
     const payload = await req.json();
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão para o Firestore (Relay)
-    // Não usamos 'await' de forma pesada aqui para evitar o Timeout no remetente.
-    // O objetivo é apenas "pulsar" o dado no Dashboard.
-    addDoc(collection(db, "webhooks"), {
-      id: Math.random().toString(36).substring(2, 9),
+    // Gravamos no Firestore para que o Dashboard (que está ouvindo via onSnapshot) receba o dado.
+    // Usamos um ID aleatório para a entrada e serverTimestamp para ordenação precisa.
+    await addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       method: "POST",
       headers: headers,
       payload: payload,
-      createdAt: serverTimestamp()
-    }).catch(err => console.error("Erro no relay silencioso:", err));
+      createdAt: serverTimestamp(),
+      volatil: true // Marcação para indicar que é dado temporário
+    });
 
-    // Respondemos IMEDIATAMENTE para evitar Timeout
     return NextResponse.json(
-      { status: "sucesso", mensagem: "WebHookPulse: Recebido e processado." },
+      { status: "sucesso", mensagem: "WebHookPulse Israel: Código Recebido." },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
+    console.error("Erro no processamento do webhook:", error);
     return NextResponse.json(
-      { status: "erro", mensagem: "Payload inválido ou malformado." },
+      { status: "erro", mensagem: "Falha ao processar payload." },
       { status: 400, headers: corsHeaders }
     );
   }
@@ -59,7 +53,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   return NextResponse.json(
-    { status: "ativo", servico: "WebHookPulse Relay" },
+    { status: "ativo", servico: "WebHookPulse Israel Relay" },
     { status: 200, headers: corsHeaders }
   );
 }
