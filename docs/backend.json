@@ -1,41 +1,30 @@
-
 {
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Registros de sinais recebidos",
+      "description": "Registros de sinais",
       "type": "object",
       "properties": {
-        "timestamp": { "type": "string", "format": "date-time" },
+        "timestamp": { "type": "string" },
         "payload": { "type": "object" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["timestamp", "payload", "createdAt"]
+        "createdAt": { "type": "string" }
+      }
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Códigos de acesso de clientes",
+      "description": "Códigos de acesso",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "usedAt": { "type": "string", "format": "date-time" },
-        "expiresAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["code", "createdAt"]
+        "createdAt": { "type": "string" }
+      }
     }
   },
   "auth": {
     "providers": ["google.com"]
   },
   "firestore": {
-    "/webhooks/{webhookId}": {
-      "schema": "Webhook",
-      "description": "Coleção de registros de sinais"
-    },
-    "/access_codes/{codeId}": {
-      "schema": "AccessCode",
-      "description": "Coleção de códigos de acesso"
-    }
+    "/webhooks/{id}": { "schema": "Webhook", "description": "Coleção de sinais" },
+    "/access_codes/{id}": { "schema": "AccessCode", "description": "Coleção de códigos" }
   }
 }
