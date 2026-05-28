@@ -1,9 +1,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { initializeFirebase } from "@/firebase";
 
 export const dynamic = 'force-dynamic';
+
+// Memória temporária no servidor (limpa ao reiniciar/redesdobrar)
+let signals: any[] = [];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +17,6 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  const { firestore: db } = initializeFirebase();
   try {
     let payload;
     const contentType = req.headers.get("content-type") || "";
@@ -33,17 +33,23 @@ export async function POST(req: NextRequest) {
     }
 
     const headers = Object.fromEntries(req.headers.entries());
-    
-    addDoc(collection(db, "webhooks"), {
-      timestamp: new Date().toISOString(),
+    const id = Math.random().toString(36).substring(2, 15);
+    const timestamp = new Date().toISOString();
+
+    const newSignal = {
+      id: id,
+      timestamp: timestamp,
       payload: payload,
       headers: headers,
-      createdAt: serverTimestamp(),
-      method: "POST"
-    }).catch(err => console.error("Firestore Relay Error:", err));
+      method: "POST",
+      createdAt: timestamp
+    };
+
+    // Adiciona ao início da lista
+    signals = [newSignal, ...signals].slice(0, 100);
 
     return NextResponse.json(
-      { ok: true, message: "Sinal capturado com sucesso" },
+      { ok: true, message: "Sinal capturado com sucesso", id },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
@@ -55,44 +61,28 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const { firestore: db } = initializeFirebase();
-  try {
-    const q = query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(50));
-    const querySnapshot = await getDocs(q);
-    
-    const signals = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      const payload = data.payload || {};
-      
-      return {
-        id: doc.id,
-        senderEmail: "desconhecido",
-        recipientEmail: null,
-        subject: "Nova mensagem recebida",
-        message: "",
-        code: payload.Conteudo || payload.codigo || payload.code || null,
-        receivedAt: data.timestamp || new Date().toISOString(),
-        debug: {
-          original: payload,
-          payload: payload,
-          headers: data.headers || {},
-          body: payload
-        }
-      };
-    });
+  const emails = signals.map(s => {
+    const payload = s.payload || {};
+    return {
+      id: s.id,
+      senderEmail: "desconhecido",
+      recipientEmail: null,
+      subject: "Nova mensagem recebida",
+      message: "",
+      code: payload.Conteudo || payload.codigo || payload.code || null,
+      receivedAt: s.timestamp,
+      debug: {
+        original: payload,
+        payload: payload,
+        headers: s.headers || {},
+        body: payload
+      }
+    };
+  });
 
-    return NextResponse.json({
-      ok: true,
-      total: signals.length,
-      emails: signals
-    }, { status: 200, headers: corsHeaders });
-
-  } catch (error) {
-    return NextResponse.json({
-      ok: false,
-      total: 0,
-      emails: [],
-      error: "Falha na sincronização"
-    }, { status: 200, headers: corsHeaders });
-  }
+  return NextResponse.json({
+    ok: true,
+    total: emails.length,
+    emails: emails
+  }, { status: 200, headers: corsHeaders });
 }
