@@ -6,14 +6,15 @@ import { firebaseConfig } from "@/firebase/config";
 
 export const dynamic = 'force-dynamic';
 
+// Inicialização segura do Firebase para ambiente Serverless
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
-// Headers CORS ultra-permissivos para evitar erro 401 e bloqueios de origem
+// Headers CORS ultra-permissivos para aceitar qualquer origem externa
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "*",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -26,42 +27,43 @@ export async function POST(req: NextRequest) {
     let payload;
     const contentType = req.headers.get("content-type") || "";
     
-    // Captura flexível de dados (JSON ou Texto)
-    try {
-      if (contentType.includes("application/json")) {
-        payload = await req.json();
-      } else {
-        const text = await req.text();
-        try {
-          payload = JSON.parse(text);
-        } catch {
-          payload = { raw: text };
-        }
+    // Captura flexível de dados
+    if (contentType.includes("application/json")) {
+      payload = await req.json();
+    } else {
+      const text = await req.text();
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = { conteudo: text };
       }
-    } catch (e) {
-      payload = { status: "error", message: "Invalid payload format" };
     }
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão via Firestore (Relay)
-    // Usamos addDoc para empurrar o sinal para o dashboard instantaneamente
-    addDoc(collection(db, "webhooks"), {
-      timestamp: new Date().toISOString(),
-      payload: payload,
-      headers: headers,
-      createdAt: serverTimestamp(),
-    }).catch(err => console.error("Falha no túnel de sinal:", err));
+    // Envia o sinal para o Firestore (Túnel de tempo real)
+    // Usamos addDoc para que o Dashboard "escute" a mudança instantaneamente
+    try {
+      await addDoc(collection(db, "webhooks"), {
+        timestamp: new Date().toISOString(),
+        payload: payload,
+        headers: headers,
+        createdAt: serverTimestamp(),
+      });
+    } catch (dbError) {
+      console.error("Erro ao transmitir sinal para o dashboard:", dbError);
+      // Mesmo com erro no DB, retornamos 200 para o remetente não falhar
+    }
 
-    // Resposta imediata (Status 200) para evitar Timeouts no remetente
+    // Resposta imediata para evitar Timeout no remetente
     return NextResponse.json(
-      { status: "success", info: "Signal captured" },
+      { status: "success", message: "Sinal capturado com sucesso" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
-    // Fallback silencioso para garantir que o remetente sempre receba um OK
+    console.error("Erro no Webhook:", error);
     return NextResponse.json(
-      { status: "ok", info: "Processed" },
+      { status: "ok", processed: true },
       { status: 200, headers: corsHeaders }
     );
   }
@@ -69,7 +71,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   return NextResponse.json(
-    { service: "Israel Receiver", status: "online", endpoint: "/api/israel" },
+    { servico: "Receptor Israel", status: "online", endpoint: "/api/israel" },
     { status: 200, headers: corsHeaders }
   );
 }

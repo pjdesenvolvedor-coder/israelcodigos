@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'RECEPTOR ISRAEL | Monitor de Sinais',
-  description: 'Sistema em tempo real para monitoramento de códigos e webhooks.',
+  description: 'Sistema de monitoramento de códigos e webhooks em tempo real.',
 };
 
 export default function RootLayout({
