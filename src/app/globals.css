@@ -33,19 +33,19 @@
     @apply border-border;
   }
   body {
-    @apply bg-white text-slate-900 antialiased;
+    @apply bg-white text-slate-900 antialiased selection:bg-blue-100 selection:text-blue-900;
   }
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-slate-50;
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-blue-100 rounded-full hover:bg-blue-200 transition-colors;
+  @apply bg-slate-200 rounded-full hover:bg-blue-200 transition-colors;
 }
