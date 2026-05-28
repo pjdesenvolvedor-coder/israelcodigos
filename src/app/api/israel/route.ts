@@ -1,9 +1,11 @@
+
 import { NextRequest, NextResponse } from "next/server";
+import { initializeFirebase } from "@/firebase";
+import { collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc } from "firebase/firestore";
 
 export const dynamic = 'force-dynamic';
 
-// Memória temporária no servidor (reseta ao reiniciar o servidor/deploy)
-let signals: any[] = [];
+const { firestore } = initializeFirebase();
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,51 +34,58 @@ export async function POST(req: NextRequest) {
     }
 
     const headers = Object.fromEntries(req.headers.entries());
-    const id = `TX-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const timestamp = new Date().toISOString();
 
-    const newSignal = {
-      id: id,
+    await addDoc(collection(firestore, "webhooks"), {
       timestamp: timestamp,
       payload: payload,
       headers: headers,
       method: "POST",
       createdAt: timestamp
-    };
-
-    // Adiciona ao início e mantém apenas os últimos 50 na memória do servidor
-    signals = [newSignal, ...signals].slice(0, 50);
+    });
 
     return NextResponse.json(
-      { ok: true, message: "Capturado", id },
+      { ok: true, message: "Capturado" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
-    return NextResponse.json(
-      { ok: true, processed: true },
-      { status: 200, headers: corsHeaders }
-    );
+    return NextResponse.json({ ok: false }, { status: 200, headers: corsHeaders });
   }
 }
 
 export async function GET() {
-  const mapped = signals.map(s => ({
-    id: s.id,
-    receivedAt: s.timestamp,
-    debug: {
-      payload: s.payload,
-      headers: s.headers
-    }
-  }));
+  try {
+    const q = query(collection(firestore, "webhooks"), orderBy("createdAt", "desc"), limit(50));
+    const snapshot = await getDocs(q);
+    const mapped = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        receivedAt: data.timestamp,
+        debug: {
+          payload: data.payload,
+          headers: data.headers
+        }
+      };
+    });
 
-  return NextResponse.json({
-    ok: true,
-    total: mapped.length,
-    emails: mapped
-  }, { status: 200, headers: corsHeaders });
+    return NextResponse.json({
+      ok: true,
+      total: mapped.length,
+      emails: mapped
+    }, { status: 200, headers: corsHeaders });
+  } catch (e) {
+    return NextResponse.json({ ok: false, emails: [] }, { status: 200, headers: corsHeaders });
+  }
 }
 
 export async function DELETE() {
-  signals = [];
-  return NextResponse.json({ ok: true, message: "Histórico limpo no servidor" }, { status: 200, headers: corsHeaders });
+  try {
+    const snapshot = await getDocs(collection(firestore, "webhooks"));
+    const deletePromises = snapshot.docs.map(d => deleteDoc(doc(firestore, "webhooks", d.id)));
+    await Promise.all(deletePromises);
+    return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });
+  } catch (e) {
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
 }

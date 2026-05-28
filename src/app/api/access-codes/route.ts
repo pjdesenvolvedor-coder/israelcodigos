@@ -1,18 +1,23 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { initializeFirebase } from "@/firebase";
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  updateDoc, 
+  doc, 
+  deleteDoc,
+  serverTimestamp 
+} from "firebase/firestore";
 
 export const dynamic = 'force-dynamic';
 
-// Memória temporária para códigos (reseta ao reiniciar servidor)
-// No mundo ideal sem DB, isso é o máximo que conseguimos de compartilhamento entre usuários
-let accessCodes: Array<{
-  code: string;
-  createdAt: string;
-  usedAt: string | null;
-  expiresAt: string | null;
-}> = [];
-
+const { firestore } = initializeFirebase();
 const ADMIN_PASSWORD = "Ae@1234Br";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE",
@@ -29,40 +34,41 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  return NextResponse.json({ codes: accessCodes }, { headers: corsHeaders });
+  const snapshot = await getDocs(collection(firestore, "access_codes"));
+  const codes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  return NextResponse.json({ codes }, { headers: corsHeaders });
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  // Rota de Geração (ADM)
   if (body.action === "generate") {
     if (body.password !== ADMIN_PASSWORD) {
       return NextResponse.json({ error: "Senha incorreta" }, { status: 401 });
     }
     const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    const entry = {
+    await addDoc(collection(firestore, "access_codes"), {
       code: newCode,
       createdAt: new Date().toISOString(),
       usedAt: null,
       expiresAt: null
-    };
-    accessCodes.push(entry);
+    });
     return NextResponse.json({ success: true, code: newCode }, { headers: corsHeaders });
   }
 
-  // Rota de Validação (Cliente)
   if (body.action === "validate") {
     const { code } = body;
-    const index = accessCodes.findIndex(c => c.code === code);
+    const q = query(collection(firestore, "access_codes"), where("code", "==", code.toUpperCase()));
+    const snapshot = await getDocs(q);
     
-    if (index === -1) {
+    if (snapshot.empty) {
       return NextResponse.json({ valid: false, message: "Código inválido" }, { status: 404 });
     }
 
-    const entry = accessCodes[index];
+    const docSnap = snapshot.docs[0];
+    const entry = docSnap.data();
 
-    // Se já foi usado, verifica expiração
     if (entry.usedAt && entry.expiresAt) {
       if (new Date() > new Date(entry.expiresAt)) {
         return NextResponse.json({ valid: false, message: "Código expirado" }, { status: 403 });
@@ -70,22 +76,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ valid: true, expiresAt: entry.expiresAt }, { headers: corsHeaders });
     }
 
-    // Primeiro uso: Ativa os 30 dias
-    const usedAt = new Date();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    accessCodes[index] = {
-      ...entry,
-      usedAt: usedAt.toISOString(),
+    await updateDoc(doc(firestore, "access_codes", docSnap.id), {
+      usedAt: new Date().toISOString(),
       expiresAt: expiresAt.toISOString()
-    };
+    });
 
     return NextResponse.json({ 
       valid: true, 
       expiresAt: expiresAt.toISOString(),
       message: "Código ativado por 30 dias" 
-    }, { headers: corsHeaders });
+    }, { headers: headers });
   }
 
   return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
@@ -96,6 +99,8 @@ export async function DELETE(req: NextRequest) {
   if (auth !== ADMIN_PASSWORD) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
-  accessCodes = [];
+  const snapshot = await getDocs(collection(firestore, "access_codes"));
+  const promises = snapshot.docs.map(d => deleteDoc(doc(firestore, "access_codes", d.id)));
+  await Promise.all(promises);
   return NextResponse.json({ success: true }, { headers: corsHeaders });
 }
