@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   WifiOff,
   Terminal,
-  Clock,
   RefreshCw,
   Code,
   Database,
@@ -35,7 +34,6 @@ import { initializeApp, getApps } from "firebase/app";
 import { firebaseConfig } from "@/firebase/config";
 import { interpretPayload } from "@/ai/flows/interpret-payload-flow";
 
-// Inicialização segura do Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
@@ -47,7 +45,6 @@ export function WebhookDashboard() {
   const [isInterpreting, setIsInterpreting] = useState<string | null>(null);
   const [status, setStatus] = useState<"online" | "connecting" | "offline">("connecting");
 
-  // Evita erros de hidratação garantindo que o componente só renderize no cliente
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -55,14 +52,13 @@ export function WebhookDashboard() {
   useEffect(() => {
     if (!mounted) return;
 
-    // Escuta a coleção em tempo real
     const q = query(
       collection(db, "webhooks"), 
       orderBy("createdAt", "desc"), 
       limit(50)
     );
     
-    const unsubscribe = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const entries = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -78,17 +74,8 @@ export function WebhookDashboard() {
       
       setHistory(entries);
       setStatus("online");
-      
-      // Notifica novo sinal se não for do cache
-      if (!snapshot.metadata.fromCache && snapshot.docChanges().some(c => c.type === "added")) {
-        toast({
-          title: "SINAL CAPTURADO",
-          description: "Um novo dado acaba de chegar ao sistema.",
-          className: "bg-blue-600 text-white border-none font-bold",
-        });
-      }
     }, (error) => {
-      console.error("Erro na escuta real-time:", error);
+      console.error("Erro real-time:", error);
       setStatus("offline");
     });
     
@@ -99,8 +86,7 @@ export function WebhookDashboard() {
     if (!searchTerm) return history;
     const term = searchTerm.toLowerCase();
     return history.filter(entry => 
-      JSON.stringify(entry.payload).toLowerCase().includes(term) ||
-      JSON.stringify(entry.headers).toLowerCase().includes(term)
+      JSON.stringify(entry.payload).toLowerCase().includes(term)
     );
   }, [history, searchTerm]);
 
@@ -111,7 +97,7 @@ export function WebhookDashboard() {
       querySnapshot.docs.forEach((doc) => batch.delete(doc.ref));
       await batch.commit();
       setSelectedEntry(null);
-      toast({ title: "Limpeza Completa", description: "O histórico foi removido." });
+      toast({ title: "Limpo", description: "Histórico removido." });
     } catch (e) {
       toast({ variant: "destructive", title: "Erro ao limpar" });
     }
@@ -136,97 +122,66 @@ export function WebhookDashboard() {
     }
   };
 
-  // Se não estiver montado, não renderiza nada para evitar erro de hidratação
   if (!mounted) return null;
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900 font-sans">
-      <header className="h-20 border-b flex items-center justify-between px-8 bg-blue-700 shrink-0 z-30 shadow-md">
-        <div className="flex items-center gap-4 text-white">
-          <div className="bg-white p-2 rounded-xl shadow-inner">
-            <ShieldCheck className="w-6 h-6 text-blue-700" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black tracking-tight leading-none uppercase">RECEPTOR ISRAEL</h1>
-            <p className="text-[10px] text-blue-100 font-bold uppercase tracking-[0.2em] mt-1 opacity-80">Sinais em Tempo Real</p>
-          </div>
+    <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900">
+      <header className="h-16 border-b flex items-center justify-between px-6 bg-blue-700 shrink-0 z-30 shadow-sm">
+        <div className="flex items-center gap-3 text-white">
+          <ShieldCheck className="w-5 h-5" />
+          <h1 className="text-lg font-black tracking-tight uppercase">RECEPTOR ISRAEL</h1>
         </div>
         
-        <div className="flex items-center gap-6">
-          <div className="flex items-center">
-            {status === "online" ? (
-              <Badge className="bg-emerald-500 hover:bg-emerald-500 text-white border-none flex gap-2 items-center px-4 py-2 font-black shadow-lg">
-                <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
-                SISTEMA ONLINE
-              </Badge>
-            ) : status === "connecting" ? (
-              <Badge className="bg-amber-500 text-white border-none flex gap-2 items-center px-4 py-2 font-black animate-pulse">
-                CONECTANDO...
-              </Badge>
-            ) : (
-              <Badge variant="destructive" className="flex gap-2 items-center px-4 py-2 font-black animate-pulse shadow-lg">
-                <WifiOff className="w-3 h-3" /> OFFLINE (ERRO DE BANCO)
-              </Badge>
-            )}
-          </div>
-
-          <Button variant="ghost" size="sm" onClick={handleClear} className="text-white hover:bg-white/10 font-bold px-4 border border-white/20">
+        <div className="flex items-center gap-4">
+          {status === "online" ? (
+            <Badge className="bg-emerald-500 text-white border-none font-bold">ONLINE</Badge>
+          ) : (
+            <Badge variant="destructive" className="font-bold animate-pulse">OFFLINE</Badge>
+          )}
+          <Button variant="ghost" size="sm" onClick={handleClear} className="text-white hover:bg-white/10 font-bold border border-white/20">
             <Trash2 className="w-4 h-4 mr-2" /> LIMPAR
           </Button>
         </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <aside className="w-96 border-r flex flex-col shrink-0 bg-slate-50">
-          <div className="p-6 border-b bg-white">
+        <aside className="w-80 border-r flex flex-col bg-slate-50">
+          <div className="p-4 border-b bg-white">
             <div className="relative">
-              <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Filtrar dados..." 
+                placeholder="Filtrar..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-50 border-slate-200 rounded-xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none border transition-all"
+                className="w-full bg-slate-50 border-slate-200 rounded-lg py-2 pl-9 text-sm outline-none border focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
           
           <ScrollArea className="flex-1">
-            <div className="p-4 space-y-3">
-              {filteredHistory.length === 0 ? (
-                <div className="py-24 text-center px-8 border-2 border-dashed border-slate-200 rounded-3xl m-2 bg-white/50">
-                  <Activity className="w-12 h-12 text-blue-200 mx-auto mb-4 animate-pulse" />
-                  <div className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Monitorando Rede...</div>
-                  <div className="text-[12px] text-slate-400 mt-2 font-medium">Aguardando sinais externos</div>
-                </div>
-              ) : (
-                filteredHistory.map((entry) => (
-                  <button
-                    key={entry.firestoreId}
-                    onClick={() => setSelectedEntry(entry)}
-                    className={`w-full text-left p-5 rounded-2xl border-2 transition-all duration-300 ${
-                      selectedEntry?.firestoreId === entry.firestoreId 
-                      ? 'bg-blue-600 border-blue-700 text-white shadow-xl scale-[1.02] z-10' 
-                      : 'hover:border-blue-200 border-slate-100 text-slate-700 bg-white hover:shadow-lg'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-3">
-                      <div className="flex items-center gap-2">
-                        <Code className={`w-3 h-3 ${selectedEntry?.firestoreId === entry.firestoreId ? 'text-blue-200' : 'text-blue-600'}`} />
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${selectedEntry?.firestoreId === entry.firestoreId ? 'text-blue-100' : 'text-blue-600'}`}>
-                          {entry.payload?.Assunto || entry.payload?.Produto || "SINAL BRUTO"}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono font-bold opacity-70">
-                        {new Date(entry.timestamp).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <div className="text-sm font-black truncate font-mono tracking-tight bg-black/5 p-2 rounded-lg">
-                      {entry.payload?.Conteudo || entry.payload?.codigo || entry.payload?.code || "VER DETALHES"}
-                    </div>
-                  </button>
-                ))
-              )}
+            <div className="p-3 space-y-2">
+              {filteredHistory.map((entry) => (
+                <button
+                  key={entry.firestoreId}
+                  onClick={() => setSelectedEntry(entry)}
+                  className={`w-full text-left p-4 rounded-xl border transition-all ${
+                    selectedEntry?.firestoreId === entry.firestoreId 
+                    ? 'bg-blue-600 border-blue-700 text-white shadow-md' 
+                    : 'hover:bg-blue-50 border-slate-100 bg-white'
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className={`text-[10px] font-bold uppercase ${selectedEntry?.firestoreId === entry.firestoreId ? 'text-blue-100' : 'text-blue-600'}`}>
+                      {entry.payload?.Produto || "SINAL"}
+                    </span>
+                    <span className="text-[10px] opacity-70">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                  <div className="text-sm font-bold truncate font-mono">
+                    {entry.payload?.Conteudo || "VER"}
+                  </div>
+                </button>
+              ))}
             </div>
           </ScrollArea>
         </aside>
@@ -234,124 +189,81 @@ export function WebhookDashboard() {
         <main className="flex-1 flex flex-col bg-white">
           {selectedEntry ? (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-4 border-b bg-slate-50/50 flex justify-between items-center px-8">
-                <div className="flex items-center gap-3 text-blue-900 font-black text-xs uppercase tracking-widest">
-                  <div className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></div>
-                  PACOTE SELECIONADO
-                </div>
-                <Badge variant="outline" className="border-blue-200 text-blue-700 font-black text-[9px] uppercase tracking-widest">Tempo Real</Badge>
+              <div className="p-3 border-b bg-slate-50 flex justify-between items-center px-6">
+                <span className="text-blue-900 font-bold text-xs uppercase">DETALHES DO PACOTE</span>
               </div>
-
               <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 overflow-hidden">
-                <div className="border-r flex flex-col bg-white">
-                  <ScrollArea className="flex-1 p-8">
-                    <div className="space-y-8">
-                      <Card className="border-2 border-blue-50 shadow-sm rounded-3xl overflow-hidden">
-                        <CardHeader className="py-5 px-6 bg-blue-50/30 border-b border-blue-50">
-                          <div className="flex items-center gap-3 text-blue-800">
-                            <Zap className="w-5 h-5 fill-blue-800" />
-                            <CardTitle className="text-[11px] font-black uppercase tracking-[0.2em]">Análise de Conteúdo</CardTitle>
+                <ScrollArea className="p-6 border-r">
+                  <div className="space-y-6">
+                    <Card className="border-blue-100 shadow-sm rounded-2xl overflow-hidden">
+                      <CardHeader className="py-3 px-4 bg-blue-50/50">
+                        <CardTitle className="text-[10px] font-bold uppercase text-blue-800">Análise IA</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        {selectedEntry.interpretation ? (
+                          <div className="space-y-4">
+                            <div className="text-sm text-slate-700 font-medium">{selectedEntry.interpretation.summary}</div>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedEntry.interpretation.codes.map((c, i) => (
+                                <Badge key={i} className="bg-blue-700 text-white">{c}</Badge>
+                              ))}
+                            </div>
                           </div>
-                        </CardHeader>
-                        <CardContent className="p-8">
-                          {selectedEntry.interpretation ? (
-                            <div className="space-y-6">
-                              <div className="text-sm text-slate-700 leading-relaxed font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                {selectedEntry.interpretation.summary}
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {selectedEntry.interpretation.codes.map((c, i) => (
-                                  <Badge key={i} className="bg-blue-700 text-white border-none text-[10px] px-4 py-1.5 font-black uppercase tracking-wider shadow-sm">
-                                    {c}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <Button 
-                              onClick={() => handleAI(selectedEntry)} 
-                              disabled={!!isInterpreting}
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-7 rounded-2xl shadow-xl transition-all active:scale-95 group"
-                            >
-                              {isInterpreting ? (
-                                <RefreshCw className="w-5 h-5 animate-spin mr-3" />
-                              ) : (
-                                <Zap className="w-5 h-5 mr-3 group-hover:scale-125 transition-transform" />
-                              )}
-                              {isInterpreting ? "PROCESSANDO..." : "DECODIFICAR COM IA"}
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2 flex items-center gap-2">
-                          <Terminal className="w-3 h-3" /> Cabeçalhos da Requisição
-                        </h4>
-                        <div className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden text-[12px] font-mono">
-                          {Object.entries(selectedEntry.headers).slice(0, 10).map(([k, v]) => (
-                            <div key={k} className="p-4 border-b border-slate-100 flex flex-col last:border-0 hover:bg-blue-50/20 transition-colors">
-                              <span className="text-blue-700 font-black uppercase text-[9px] mb-1 opacity-70">{k}</span>
-                              <span className="text-slate-600 break-all leading-tight">{String(v)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </div>
-
-                <div className="bg-slate-900 flex flex-col">
-                  <div className="p-5 border-b border-white/10 bg-black/40 flex items-center justify-between px-8">
-                    <div className="flex items-center gap-3">
-                      <Terminal className="w-4 h-4 text-blue-400" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Código Bruto (JSON)</span>
-                    </div>
-                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[9px] font-black">ACESSO SEGURO</Badge>
-                  </div>
-                  <ScrollArea className="flex-1">
-                    <div className="p-10">
-                      <pre className="text-[13px] font-mono leading-relaxed overflow-x-auto text-blue-100 selection:bg-blue-500/50">
+                        ) : (
+                          <Button 
+                            onClick={() => handleAI(selectedEntry)} 
+                            disabled={!!isInterpreting}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 rounded-xl"
+                          >
+                            {isInterpreting ? <RefreshCw className="animate-spin mr-2" /> : <Zap className="mr-2" />}
+                            {isInterpreting ? "PROCESSANDO..." : "DECODIFICAR COM IA"}
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">JSON Bruto</span>
+                      <pre className="bg-slate-900 text-blue-100 p-4 rounded-xl text-xs overflow-auto">
                         {JSON.stringify(selectedEntry.payload, null, 2)}
                       </pre>
                     </div>
-                  </ScrollArea>
-                </div>
+                  </div>
+                </ScrollArea>
+                <ScrollArea className="bg-slate-50 p-6">
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Cabeçalhos</span>
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden text-[11px]">
+                      {Object.entries(selectedEntry.headers).map(([k, v]) => (
+                        <div key={k} className="p-3 border-b last:border-0 flex flex-col">
+                          <span className="text-blue-700 font-bold uppercase text-[9px]">{k}</span>
+                          <span className="text-slate-600 break-all">{String(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </ScrollArea>
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-20 text-center bg-white relative">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.03)_0%,transparent_70%)]"></div>
-              
-              <div className="w-28 h-28 bg-blue-50 rounded-3xl flex items-center justify-center mb-10 text-blue-600 relative rotate-3 shadow-blue-100 shadow-xl">
-                <Activity className="w-12 h-12" />
-                <div className="absolute -inset-4 rounded-3xl border-2 border-blue-600/5 animate-ping"></div>
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+              <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 text-blue-600">
+                <Activity className="w-10 h-10" />
               </div>
-
-              {status === "offline" ? (
-                <div className="max-w-md bg-red-50 border-2 border-red-100 p-8 rounded-3xl shadow-lg relative z-10">
-                  <Database className="w-10 h-10 text-red-500 mx-auto mb-4" />
-                  <h2 className="text-xl font-black text-red-900 mb-2 uppercase">Banco Desconectado</h2>
-                  <div className="text-sm text-red-700 mb-6 font-medium">
-                    O receptor não consegue sincronizar em tempo real porque o Firestore não foi criado ou está inacessível.
-                  </div>
-                  <Button className="bg-red-600 hover:bg-red-700 text-white font-bold w-full" asChild>
-                    <a href="#" onClick={() => window.location.reload()}>RECONECTAR SISTEMA</a>
-                  </Button>
+              <h2 className="text-2xl font-black text-blue-900 mb-2 uppercase">Aguardando Sinais</h2>
+              <div className="text-slate-500 text-sm max-w-sm mb-8 font-medium">
+                O sistema está monitorando. Envie seu POST para o link abaixo para ver os dados aparecerem aqui.
+              </div>
+              <div className="p-6 bg-blue-50 border-2 border-dashed border-blue-200 rounded-2xl">
+                <code className="text-blue-700 font-black text-lg">/api/israel</code>
+                <div className="flex items-center justify-center gap-2 mt-2 text-blue-400">
+                  <ExternalLink className="w-3 h-3" />
+                  <span className="text-[9px] uppercase font-bold">Endpoint Ativo</span>
                 </div>
-              ) : (
-                <div className="max-w-md relative z-10">
-                  <h2 className="text-3xl font-black text-blue-900 mb-4 tracking-tight uppercase leading-none">Aguardando Sinais</h2>
-                  <div className="text-slate-500 text-sm leading-relaxed font-medium mb-10">
-                    O sistema está ativo e operando em frequência máxima. Qualquer sinal enviado para o endpoint abaixo aparecerá aqui instantaneamente.
-                  </div>
-                  <div className="p-8 bg-blue-50 border-2 border-dashed border-blue-200 rounded-3xl group hover:border-blue-400 transition-all cursor-pointer">
-                    <code className="text-blue-700 font-black text-xl break-all">/api/israel</code>
-                    <div className="flex items-center justify-center gap-2 mt-4 text-blue-400">
-                      <ExternalLink className="w-3 h-3" />
-                      <span className="text-[9px] uppercase font-black tracking-widest">Endpoint pronto para uso</span>
-                    </div>
-                  </div>
+              </div>
+              {status === "offline" && (
+                <div className="mt-8 p-4 bg-red-50 border border-red-100 rounded-xl max-w-xs">
+                  <Database className="w-6 h-6 text-red-500 mx-auto mb-2" />
+                  <p className="text-xs text-red-700 font-bold">BANCO DESCONECTADO. ATIVE O FIRESTORE NO PAINEL FIREBASE.</p>
                 </div>
               )}
             </div>

@@ -37,21 +37,20 @@ export async function POST(req: NextRequest) {
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão para o Firestore (Relay) - SEM ESPERAR AWAIT para resposta ultra-rápida
+    // Relay para o Firestore - SEM AWAIT para não travar o remetente
     addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
       headers: headers,
       createdAt: serverTimestamp(),
       method: "POST"
-    }).catch(err => console.error("Erro no relay do sinal:", err));
+    }).catch(err => console.error("Erro no relay:", err));
 
     return NextResponse.json(
-      { ok: true, message: "Sinal capturado com sucesso" },
+      { ok: true, message: "Sinal capturado" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
-    // Retorna sucesso silencioso mesmo em erro para não travar o remetente
     return NextResponse.json(
       { ok: true, processed: true },
       { status: 200, headers: corsHeaders }
@@ -96,7 +95,7 @@ export async function GET() {
       ok: false,
       total: 0,
       emails: [],
-      error: "Erro ao buscar sinais no banco"
+      error: "Erro ao buscar dados"
     }, { status: 200, headers: corsHeaders });
   }
 }
