@@ -3,24 +3,24 @@
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Registro de sinal recebido",
+      "description": "Logs de sinais recebidos via webhook",
       "type": "object",
       "properties": {
-        "timestamp": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
         "payload": { "type": "object" },
-        "createdAt": { "type": "string" }
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["timestamp", "payload", "createdAt"]
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Código de acesso de cliente",
+      "description": "Códigos de acesso para clientes",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
-        "createdAt": { "type": "string" },
-        "usedAt": { "type": "string" },
-        "expiresAt": { "type": "string" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "usedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
       },
       "required": ["code", "createdAt"]
     }
@@ -31,11 +31,11 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção de sinais"
+      "description": "Coleção de registros de sinais"
     },
     "/access_codes/{codeId}": {
       "schema": "AccessCode",
-      "description": "Coleção de códigos"
+      "description": "Coleção de códigos de acesso de 30 dias"
     }
   }
 }
