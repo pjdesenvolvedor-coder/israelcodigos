@@ -3,20 +3,21 @@
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Sinal de webhook recebido.",
+      "description": "Sinal de webhook recebido do sistema externo.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "payload": { "type": "object" },
         "headers": { "type": "object" },
+        "method": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "timestamp", "payload", "createdAt"]
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Código de acesso para clientes.",
+      "description": "Código de acesso para clientes com validade de 30 dias.",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
@@ -33,11 +34,11 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção de sinais recebidos."
+      "description": "Coleção de sinais recebidos via API."
     },
     "/access_codes/{codeId}": {
       "schema": "AccessCode",
-      "description": "Coleção de códigos de acesso gerados pelo ADM."
+      "description": "Coleção de códigos de acesso gerados e validados."
     }
   }
 }
