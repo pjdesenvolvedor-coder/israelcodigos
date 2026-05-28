@@ -1,18 +1,26 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Calendar } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface AccessCode {
+  code: string;
+  createdAt: string;
+  usedAt: string | null;
+  expiresAt: string | null;
+}
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [isLogged, setIsLogged] = useState(false);
-  const [codes, setCodes] = useState<any[]>([]);
+  const [codes, setCodes] = useState<AccessCode[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -56,13 +64,14 @@ export default function AdminPage() {
   };
 
   const clearAll = async () => {
-    if (!confirm("Tem certeza que deseja apagar todos os códigos?")) return;
+    if (!confirm("Tem certeza que deseja apagar todos os registros?")) return;
     try {
       await fetch("/api/access-codes", {
         method: "DELETE",
         headers: { "Authorization": password }
       });
       setCodes([]);
+      toast({ title: "LIMPEZA CONCLUÍDA", className: "bg-blue-600 text-white font-black rounded-2xl" });
     } catch (e) {}
   };
 
@@ -70,6 +79,10 @@ export default function AdminPage() {
     navigator.clipboard.writeText(c);
     toast({ title: "COPIADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
   };
+
+  // Separação dos códigos
+  const activeUsers = useMemo(() => codes.filter(c => c.usedAt !== null), [codes]);
+  const pendingCodes = useMemo(() => codes.filter(c => c.usedAt === null), [codes]);
 
   if (!isLogged) {
     return (
@@ -108,7 +121,7 @@ export default function AdminPage() {
       <header className="p-6 bg-white border-b flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <Settings className="w-6 h-6 text-blue-600" />
-          <h1 className="font-black text-blue-900 uppercase tracking-tighter">Gerenciador de Acessos</h1>
+          <h1 className="font-black text-blue-900 uppercase tracking-tighter">Gerenciador Israel</h1>
         </div>
         <Button variant="ghost" size="icon" onClick={clearAll} className="text-slate-300 hover:text-red-500">
           <Trash2 className="w-5 h-5" />
@@ -122,49 +135,82 @@ export default function AdminPage() {
           className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-3"
         >
           {loading ? <Loader2 className="animate-spin" /> : <Plus className="w-6 h-6" />}
-          GERAR NOVO CÓDIGO
+          GERAR NOVO ACESSO
         </Button>
 
-        <div className="space-y-4">
-          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] px-2">Códigos Ativos ({codes.length})</h2>
-          <ScrollArea className="h-[500px]">
-            <div className="space-y-3 pr-2">
-              {codes.length === 0 ? (
-                <div className="py-20 text-center space-y-3">
-                  <ShieldAlert className="w-10 h-10 text-slate-200 mx-auto" />
-                  <p className="text-slate-400 font-bold text-xs uppercase">Nenhum código gerado</p>
-                </div>
-              ) : (
-                codes.map((item, idx) => (
-                  <Card key={idx} className="bg-white border-blue-50 rounded-[25px] shadow-sm hover:shadow-md transition-all overflow-hidden">
-                    <CardContent className="p-5 flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Key className="w-3 h-3 text-blue-300" />
-                          <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
+        <Tabs defaultValue="users" className="w-full">
+          <TabsList className="w-full grid grid-cols-2 h-14 bg-white border-blue-50 rounded-2xl shadow-sm p-1">
+            <TabsTrigger value="users" className="rounded-xl font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              Usuários ({activeUsers.length})
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="rounded-xl font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              Pendentes ({pendingCodes.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users" className="mt-6 space-y-4">
+            <ScrollArea className="h-[450px]">
+              <div className="space-y-3 pr-2">
+                {activeUsers.length === 0 ? (
+                  <div className="py-20 text-center space-y-3">
+                    <Users className="w-10 h-10 text-slate-200 mx-auto" />
+                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum usuário ativo</p>
+                  </div>
+                ) : (
+                  activeUsers.map((item, idx) => (
+                    <Card key={idx} className="bg-white border-green-50 rounded-[25px] shadow-sm overflow-hidden border-l-4 border-l-green-500">
+                      <CardContent className="p-5 flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3 h-3 text-green-500" />
+                            <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[8px] font-black text-slate-400 uppercase">Ativado em: {new Date(item.usedAt!).toLocaleDateString()}</span>
+                            <span className="text-[8px] font-black text-blue-500 uppercase">Expira em: {new Date(item.expiresAt!).toLocaleDateString()}</span>
+                          </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[8px] font-black text-slate-400 uppercase">Criado: {new Date(item.createdAt).toLocaleDateString()}</span>
-                          {item.usedAt ? (
-                            <div className="flex items-center gap-1 text-blue-500">
-                              <Calendar className="w-2.5 h-2.5" />
-                              <span className="text-[8px] font-black uppercase">Expira: {new Date(item.expiresAt).toLocaleDateString()}</span>
-                            </div>
-                          ) : (
-                            <span className="text-[8px] font-black text-green-500 uppercase">Aguardando Primeiro Uso</span>
-                          )}
+                        <div className="bg-green-50 px-3 py-1.5 rounded-full">
+                          <span className="text-[8px] font-black text-green-600 uppercase">ATIVO</span>
                         </div>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => copyCode(item.code)} className="bg-slate-50 text-slate-400 rounded-xl hover:text-blue-600">
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </ScrollArea>
-        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="pending" className="mt-6 space-y-4">
+            <ScrollArea className="h-[450px]">
+              <div className="space-y-3 pr-2">
+                {pendingCodes.length === 0 ? (
+                  <div className="py-20 text-center space-y-3">
+                    <ShieldAlert className="w-10 h-10 text-slate-200 mx-auto" />
+                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum código pendente</p>
+                  </div>
+                ) : (
+                  pendingCodes.map((item, idx) => (
+                    <Card key={idx} className="bg-white border-blue-50 rounded-[25px] shadow-sm hover:shadow-md transition-all overflow-hidden border-l-4 border-l-blue-200">
+                      <CardContent className="p-5 flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3 text-blue-300" />
+                            <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
+                          </div>
+                          <span className="text-[8px] font-black text-slate-400 uppercase">Gerado em: {new Date(item.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => copyCode(item.code)} className="bg-slate-50 text-slate-400 rounded-xl hover:text-blue-600">
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
