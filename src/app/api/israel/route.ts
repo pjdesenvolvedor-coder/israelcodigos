@@ -8,10 +8,11 @@ export const dynamic = 'force-dynamic';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
+// CORS TOTALMENTE ABERTO PARA QUALQUER ORIGEM
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -37,21 +38,24 @@ export async function POST(req: NextRequest) {
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão em tempo real via Firestore (Relay)
+    // Transmissão para o Firestore (Relay)
+    // Usamos addDoc e não esperamos o await para responder imediatamente ao remetente (evita timeout)
     addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
       headers: headers,
       createdAt: serverTimestamp(),
-    }).catch(err => console.error("Erro no relay:", err));
+      method: "POST"
+    }).catch(err => console.error("Erro no relay do sinal:", err));
 
     return NextResponse.json(
-      { status: "success", message: "Sinal capturado" },
+      { ok: true, message: "Sinal capturado com sucesso" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
+    // Falha silenciosa para o remetente sempre receber OK
     return NextResponse.json(
-      { status: "ok", processed: true },
+      { ok: true, processed: true },
       { status: 200, headers: corsHeaders }
     );
   }
@@ -94,7 +98,7 @@ export async function GET() {
       ok: false,
       total: 0,
       emails: [],
-      error: "Erro ao buscar sinais"
+      error: "Erro ao buscar sinais ativos"
     }, { status: 200, headers: corsHeaders });
   }
 }
