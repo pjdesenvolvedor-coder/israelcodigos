@@ -1,17 +1,18 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut, Send } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut, Send, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, addDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { cn } from "@/lib/utils";
 
 interface AccessCode {
   id: string;
@@ -27,6 +28,7 @@ export default function AdminPage() {
   const [passInput, setPassInput] = useState("");
   const [isLogged, setIsLogged] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'error'>('checking');
   const { toast } = useToast();
   const db = useFirestore();
 
@@ -36,6 +38,23 @@ export default function AdminPage() {
   }, [db]);
 
   const { data: codes = [] } = useCollection<AccessCode>(codesQuery);
+
+  // Teste de conexão real ao montar o painel
+  useEffect(() => {
+    if (isLogged && db) {
+      const checkConnection = async () => {
+        try {
+          const testDoc = doc(collection(db, "_system_check"), "status");
+          await setDoc(testDoc, { lastCheck: new Date().toISOString() });
+          setDbStatus('online');
+        } catch (err) {
+          console.error(err);
+          setDbStatus('error');
+        }
+      };
+      checkConnection();
+    }
+  }, [isLogged, db]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,8 +80,8 @@ export default function AdminPage() {
         createdAt: timestamp,
         method: "TEST",
         payload: {
-          Produto: "TESTE DE CONEXÃO",
-          Assunto: "SINAL MANUAL",
+          Produto: "SINAL TÁTICO ISRAEL",
+          Assunto: "TESTE DE CONEXÃO DIRETA",
           Conteudo: Math.floor(1000 + Math.random() * 9000).toString()
         }
       });
@@ -181,10 +200,34 @@ export default function AdminPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+        
+        {/* Status da Conexão */}
+        <div className={cn(
+          "p-4 rounded-2xl flex items-center justify-between",
+          dbStatus === 'online' ? "bg-green-50 border border-green-100" : 
+          dbStatus === 'error' ? "bg-red-50 border border-red-100" : "bg-slate-50 border border-slate-100"
+        )}>
+          <div className="flex items-center gap-3">
+            {dbStatus === 'online' ? <Wifi className="w-5 h-5 text-green-600" /> : 
+             dbStatus === 'error' ? <WifiOff className="w-5 h-5 text-red-600" /> : 
+             <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />}
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status do Banco</p>
+              <p className={cn("text-xs font-black uppercase", 
+                dbStatus === 'online' ? "text-green-600" : 
+                dbStatus === 'error' ? "text-red-600" : "text-slate-400")}>
+                {dbStatus === 'online' ? "SISTEMA ONLINE" : 
+                 dbStatus === 'error' ? "ERRO NAS REGRAS" : "VERIFICANDO..."}
+              </p>
+            </div>
+          </div>
+          {dbStatus === 'online' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+        </div>
+
         <div className="grid grid-cols-1 gap-4">
           <Button 
             onClick={generateCode}
-            disabled={loading}
+            disabled={loading || dbStatus !== 'online'}
             className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-3 shrink-0"
           >
             {loading ? <Loader2 className="animate-spin" /> : <Plus className="w-6 h-6" />}
@@ -193,7 +236,7 @@ export default function AdminPage() {
 
           <Button 
             onClick={sendTestSignal}
-            disabled={loading}
+            disabled={loading || dbStatus !== 'online'}
             variant="outline"
             className="w-full h-14 border-2 border-dashed border-blue-200 text-blue-600 font-black rounded-2xl hover:bg-blue-50 flex items-center justify-center gap-2"
           >
