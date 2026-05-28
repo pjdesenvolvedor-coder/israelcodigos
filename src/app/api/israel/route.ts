@@ -3,30 +3,44 @@ import { initializeApp, getApps } from "firebase/app";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseConfig } from "@/firebase/config";
 
-// Inicialização rápida para garantir resposta veloz
+// Inicialização rápida
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
+// Headers para permitir TUDO (CORS total)
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
+  "Access-Control-Max-Age": "86400",
 };
 
+/**
+ * OPTIONS: Pre-flight para CORS
+ */
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
 /**
- * Endpoint: /api/israel
- * Recebe o Webhook e transmite para o Dashboard via Firestore.
+ * POST: Recebe o Webhook e transmite para o Dashboard
  */
 export async function POST(req: NextRequest) {
   try {
-    const payload = await req.json();
+    let payload;
+    const contentType = req.headers.get("content-type") || "";
+    
+    // Tenta ler o corpo da requisição de várias formas para não dar erro
+    if (contentType.includes("application/json")) {
+      payload = await req.json();
+    } else {
+      payload = { raw: await req.text() };
+    }
+
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Transmissão instantânea via Firestore
+    // Transmissão via Firestore (Necessário para o Dashboard "ouvir" o servidor)
+    // Os dados são voláteis e você pode limpar no Dashboard
     await addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
@@ -35,17 +49,19 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { status: "sucesso", mensagem: "Recebido em Israel" },
+      { status: "sucesso", msg: "Código recebido em Israel" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
+    // Mesmo com erro, retornamos 200 para não travar o remetente
     return NextResponse.json(
-      { status: "erro", mensagem: "Falha no recebimento" },
-      { status: 400, headers: corsHeaders }
+      { status: "erro", msg: "Processado com ressalvas" },
+      { status: 200, headers: corsHeaders }
     );
   }
 }
 
+// Aceitar GET também para testes rápidos
 export async function GET() {
   return NextResponse.json(
     { status: "online", endpoint: "/api/israel" },
