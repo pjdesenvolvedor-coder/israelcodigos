@@ -3,7 +3,7 @@
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Entrada de sinal externo",
+      "description": "Registro de sinal recebido",
       "type": "object",
       "properties": {
         "timestamp": { "type": "string" },
@@ -14,7 +14,7 @@
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Código de acesso para clientes",
+      "description": "Código de acesso de cliente",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
@@ -31,11 +31,11 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção de registros de sinais"
+      "description": "Coleção de sinais"
     },
     "/access_codes/{codeId}": {
       "schema": "AccessCode",
-      "description": "Coleção de códigos de acesso israel"
+      "description": "Coleção de códigos"
     }
   }
 }
