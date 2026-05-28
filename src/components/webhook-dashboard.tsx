@@ -216,7 +216,7 @@ export function WebhookDashboard() {
       </header>
 
       <main className={cn(
-        "flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-hide transition-all duration-700",
+        "flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-hide transition-all duration-700 flex flex-col",
         isAccessExpired && "blur-sm grayscale opacity-50 pointer-events-none"
       )}>
         
@@ -317,10 +317,10 @@ export function WebhookDashboard() {
           </div>
         )}
 
-        <footer className="p-8 text-center flex items-center justify-center gap-2">
-          <span className="text-[9px] font-black text-blue-200 uppercase tracking-widest">FEITO COM</span>
-          <Heart className="w-3 h-3 text-red-500 fill-red-500 animate-pulse" />
-          <span className="text-[9px] font-black text-blue-200 uppercase tracking-widest">POR PJ DEV</span>
+        <footer className="mt-auto p-8 text-center flex items-center justify-center gap-2">
+          <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">FEITO COM</span>
+          <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
+          <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">POR PJ DEV</span>
         </footer>
       </main>
     </div>
