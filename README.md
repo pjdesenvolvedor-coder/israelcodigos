@@ -1,23 +1,25 @@
 
 # RECEPTOR ISRAEL - Monitor de Sinais
 
-Este projeto utiliza Next.js com Firebase Firestore para monitoramento de webhooks e códigos em tempo real.
+## Guia de Configuração Manual (Pela sua imagem)
 
-## Configuração Manual (Caminho Alternativo)
+Como o sistema automático falhou, siga estes passos no seu Console Firebase:
 
-Como você já criou o projeto no console, siga estes passos:
+### 1. Obter as Chaves de Acesso
+1. No menu lateral esquerdo, clique em **Configurações** (ícone da engrenagem).
+2. Selecione **Configurações do projeto**.
+3. Role a página até encontrar a seção **"Seus apps"**.
+4. Clique no ícone **`</>` (Web)**.
+5. Digite um nome para o app e clique em **Registrar app**.
+6. Copie os valores de `apiKey`, `authDomain`, etc.
+7. Abra o arquivo `src/firebase/config.ts` no editor e cole os valores nos lugares indicados.
 
-1. **Obter Configuração Web**:
-   - No [Console do Firebase](https://console.firebase.google.com/), acesse seu projeto "Receptor Israel".
-   - Na engrenagem (Configurações do Projeto) ou na Visão Geral, clique no ícone `</>` (Web).
-   - Copie os valores do objeto `firebaseConfig`.
-   - Abra o arquivo `src/firebase/config.ts` no editor e cole os valores lá.
+### 2. Ativar o Banco de Dados (Firestore)
+1. No menu lateral esquerdo, clique em **Bancos de dados e ar...**.
+2. Clique em **Cloud Firestore** ou **Firestore Database**.
+3. Clique no botão **Criar banco de dados**.
+4. Escolha a região (ex: `southamerica-east1`).
+5. Selecione **Modo de Teste** (importante para funcionar de imediato).
 
-2. **Ativar o Banco de Dados**:
-   - No menu lateral do Firebase, vá em **Build > Firestore Database**.
-   - Clique em **Criar banco de dados**.
-   - Escolha o local (ex: `southamerica-east1`).
-   - Selecione **Modo de Teste** para liberar o acesso inicial.
-
-## Link Direto para o Banco
-`https://console.firebase.google.com/project/${SUA_PROJECT_ID}/firestore`
+---
+PJ DEV - Sistema de Monitoramento Tático.

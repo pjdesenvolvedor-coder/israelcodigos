@@ -2,18 +2,17 @@
 'use client';
 
 /**
- * COLE AQUI AS CHAVES QUE VOCÊ PEGOU NO CONSOLE DO FIREBASE
+ * COLE AQUI AS CHAVES DO SEU PROJETO
  * 
- * Siga os passos:
- * 1. No console, clique no ícone </> (Web)
- * 2. Registre o app
- * 3. Copie o objeto 'firebaseConfig' e substitua os valores abaixo
+ * 1. Vá em Configurações do Projeto (ícone da engrenagem no menu esquerdo).
+ * 2. Role até "Seus apps" e clique no ícone </>.
+ * 3. Copie os valores do objeto 'firebaseConfig' e cole abaixo.
  */
 export const firebaseConfig = {
-  apiKey: "SUBSTITUA_PELA_SUA_API_KEY",
-  authDomain: "SUBSTITUA_PELO_SEU_AUTH_DOMAIN",
-  projectId: "SUBSTITUA_PELO_SEU_PROJECT_ID",
-  storageBucket: "SUBSTITUA_PELO_SEU_STORAGE_BUCKET",
-  messagingSenderId: "SUBSTITUA_PELO_SENDER_ID",
-  appId: "SUBSTITUA_PELO_APP_ID"
+  apiKey: "COLE_AQUI_API_KEY",
+  authDomain: "COLE_AQUI_AUTH_DOMAIN",
+  projectId: "COLE_AQUI_PROJECT_ID",
+  storageBucket: "COLE_AQUI_STORAGE_BUCKET",
+  messagingSenderId: "COLE_AQUI_SENDER_ID",
+  appId: "COLE_AQUI_APP_ID"
 };
