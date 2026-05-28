@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -12,7 +13,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -156,13 +156,13 @@ export function WebhookDashboard() {
   if (!mounted) return null;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-sans max-w-md mx-auto relative overflow-hidden">
+    <div className="h-screen bg-slate-50 text-slate-900 font-sans max-w-md mx-auto flex flex-col overflow-hidden">
       {/* Background Decor */}
       <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10" />
       <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-blue-600/5 rounded-full blur-3xl -z-10" />
 
-      {/* Header */}
-      <header className="p-6 flex items-center justify-between bg-white/40 backdrop-blur-md sticky top-0 z-50 border-b border-blue-50/50">
+      {/* Header Fixo */}
+      <header className="p-6 flex items-center justify-between bg-white/80 backdrop-blur-md shrink-0 z-50 border-b border-blue-50/50">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2.5 rounded-2xl shadow-lg shadow-blue-200">
             <Smartphone className="w-6 h-6 text-white" />
@@ -177,7 +177,8 @@ export function WebhookDashboard() {
         </Button>
       </header>
 
-      <main className="flex-1 px-5 py-6 space-y-6">
+      {/* Área de Conteúdo que Rola */}
+      <main className="flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-hide">
         
         {/* Status Indicator */}
         <div className="flex items-center justify-center gap-2 bg-white shadow-sm border border-blue-100 py-2.5 px-5 rounded-full mx-auto w-fit">
@@ -256,46 +257,44 @@ export function WebhookDashboard() {
               <ShieldCheck className="w-4 h-4 text-blue-200" />
             </div>
             
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-3 pr-2">
-                {activeHistory.slice(1).map((entry) => (
-                  <div 
-                    key={entry.id}
-                    onClick={() => handleCopy(entry.payload.Conteudo)}
-                    className="bg-white p-5 rounded-[30px] border border-blue-50 flex items-center justify-between active:bg-blue-50 transition-all shadow-sm group hover:shadow-md"
-                  >
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{entry.payload.Produto}</span>
-                        <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
-                          <Clock className="w-2.5 h-2.5 text-blue-400" />
-                          <span className="text-[9px] font-mono font-bold text-blue-400">
-                            {formatTimeLeft(entry.timestamp)}
-                          </span>
-                        </div>
+            <div className="space-y-3">
+              {activeHistory.slice(1).map((entry) => (
+                <div 
+                  key={entry.id}
+                  onClick={() => handleCopy(entry.payload.Conteudo)}
+                  className="bg-white p-5 rounded-[30px] border border-blue-50 flex items-center justify-between active:bg-blue-50 transition-all shadow-sm group hover:shadow-md"
+                >
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{entry.payload.Produto}</span>
+                      <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
+                        <Clock className="w-2.5 h-2.5 text-blue-400" />
+                        <span className="text-[9px] font-mono font-bold text-blue-400">
+                          {formatTimeLeft(entry.timestamp)}
+                        </span>
                       </div>
-                      <span className="text-2xl font-mono font-black text-blue-600 leading-none">{entry.payload.Conteudo}</span>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-2xl text-slate-300 group-active:text-blue-600">
-                      <Copy className="w-4 h-4" />
-                    </div>
+                    <span className="text-2xl font-mono font-black text-blue-600 leading-none">{entry.payload.Conteudo}</span>
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
+                  <div className="bg-slate-50 p-3 rounded-2xl text-slate-300 group-active:text-blue-600">
+                    <Copy className="w-4 h-4" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
-      </main>
 
-      {/* Footer */}
-      <footer className="p-8 text-center bg-white/20">
-        <div className="flex items-center justify-center gap-3 mb-3">
-          <div className="h-[1px] w-10 bg-blue-100" />
-          <ShieldCheck className="w-5 h-5 text-blue-200" />
-          <div className="h-[1px] w-10 bg-blue-100" />
-        </div>
-        <p className="text-[9px] font-black text-blue-200 uppercase tracking-[0.5em]">PROTEÇÃO TÁTICA ISRAEL</p>
-      </footer>
+        {/* Footer dentro da rolagem */}
+        <footer className="p-8 text-center">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <div className="h-[1px] w-10 bg-blue-100" />
+            <ShieldCheck className="w-5 h-5 text-blue-200" />
+            <div className="h-[1px] w-10 bg-blue-100" />
+          </div>
+          <p className="text-[9px] font-black text-blue-200 uppercase tracking-[0.5em]">PROTEÇÃO TÁTICA ISRAEL</p>
+        </footer>
+      </main>
     </div>
   );
 }

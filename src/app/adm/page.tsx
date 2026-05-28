@@ -117,8 +117,8 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 max-w-md mx-auto flex flex-col">
-      <header className="p-6 bg-white border-b flex items-center justify-between sticky top-0 z-50">
+    <div className="h-screen bg-slate-50 max-w-md mx-auto flex flex-col overflow-hidden">
+      <header className="p-6 bg-white border-b flex items-center justify-between shrink-0 z-50">
         <div className="flex items-center gap-3">
           <Settings className="w-6 h-6 text-blue-600" />
           <h1 className="font-black text-blue-900 uppercase tracking-tighter">Gerenciador Israel</h1>
@@ -128,11 +128,11 @@ export default function AdminPage() {
         </Button>
       </header>
 
-      <main className="p-6 flex-1 space-y-6">
+      <main className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
         <Button 
           onClick={generateCode}
           disabled={loading}
-          className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-3"
+          className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-3 shrink-0"
         >
           {loading ? <Loader2 className="animate-spin" /> : <Plus className="w-6 h-6" />}
           GERAR NOVO ACESSO
@@ -148,67 +148,63 @@ export default function AdminPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="mt-6 space-y-4">
-            <ScrollArea className="h-[450px]">
-              <div className="space-y-3 pr-2">
-                {activeUsers.length === 0 ? (
-                  <div className="py-20 text-center space-y-3">
-                    <Users className="w-10 h-10 text-slate-200 mx-auto" />
-                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum usuário ativo</p>
-                  </div>
-                ) : (
-                  activeUsers.map((item, idx) => (
-                    <Card key={idx} className="bg-white border-green-50 rounded-[25px] shadow-sm overflow-hidden border-l-4 border-l-green-500">
-                      <CardContent className="p-5 flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3 h-3 text-green-500" />
-                            <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
-                          </div>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[8px] font-black text-slate-400 uppercase">Ativado em: {new Date(item.usedAt!).toLocaleDateString()}</span>
-                            <span className="text-[8px] font-black text-blue-500 uppercase">Expira em: {new Date(item.expiresAt!).toLocaleDateString()}</span>
-                          </div>
+          <TabsContent value="users" className="mt-6 space-y-4 outline-none">
+            <div className="space-y-3">
+              {activeUsers.length === 0 ? (
+                <div className="py-20 text-center space-y-3">
+                  <Users className="w-10 h-10 text-slate-200 mx-auto" />
+                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum usuário ativo</p>
+                </div>
+              ) : (
+                activeUsers.map((item, idx) => (
+                  <Card key={idx} className="bg-white border-green-50 rounded-[25px] shadow-sm overflow-hidden border-l-4 border-l-green-500">
+                    <CardContent className="p-5 flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3 h-3 text-green-500" />
+                          <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
                         </div>
-                        <div className="bg-green-50 px-3 py-1.5 rounded-full">
-                          <span className="text-[8px] font-black text-green-600 uppercase">ATIVO</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[8px] font-black text-slate-400 uppercase">Ativado em: {new Date(item.usedAt!).toLocaleDateString()}</span>
+                          <span className="text-[8px] font-black text-blue-500 uppercase">Expira em: {new Date(item.expiresAt!).toLocaleDateString()}</span>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
+                      </div>
+                      <div className="bg-green-50 px-3 py-1.5 rounded-full">
+                        <span className="text-[8px] font-black text-green-600 uppercase">ATIVO</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </TabsContent>
 
-          <TabsContent value="pending" className="mt-6 space-y-4">
-            <ScrollArea className="h-[450px]">
-              <div className="space-y-3 pr-2">
-                {pendingCodes.length === 0 ? (
-                  <div className="py-20 text-center space-y-3">
-                    <ShieldAlert className="w-10 h-10 text-slate-200 mx-auto" />
-                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum código pendente</p>
-                  </div>
-                ) : (
-                  pendingCodes.map((item, idx) => (
-                    <Card key={idx} className="bg-white border-blue-50 rounded-[25px] shadow-sm hover:shadow-md transition-all overflow-hidden border-l-4 border-l-blue-200">
-                      <CardContent className="p-5 flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-3 h-3 text-blue-300" />
-                            <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
-                          </div>
-                          <span className="text-[8px] font-black text-slate-400 uppercase">Gerado em: {new Date(item.createdAt).toLocaleDateString()}</span>
+          <TabsContent value="pending" className="mt-6 space-y-4 outline-none">
+            <div className="space-y-3">
+              {pendingCodes.length === 0 ? (
+                <div className="py-20 text-center space-y-3">
+                  <ShieldAlert className="w-10 h-10 text-slate-200 mx-auto" />
+                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum código pendente</p>
+                </div>
+              ) : (
+                pendingCodes.map((item, idx) => (
+                  <Card key={idx} className="bg-white border-blue-50 rounded-[25px] shadow-sm hover:shadow-md transition-all overflow-hidden border-l-4 border-l-blue-200">
+                    <CardContent className="p-5 flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3 h-3 text-blue-300" />
+                          <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => copyCode(item.code)} className="bg-slate-50 text-slate-400 rounded-xl hover:text-blue-600">
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
+                        <span className="text-[8px] font-black text-slate-400 uppercase">Gerado em: {new Date(item.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => copyCode(item.code)} className="bg-slate-50 text-slate-400 rounded-xl hover:text-blue-600">
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </main>
