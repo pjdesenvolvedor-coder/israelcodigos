@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initializeFirebase } from "@/firebase";
 import { collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc } from "firebase/firestore";
+import { interpretPayload } from "@/ai/flows/interpret-payload-flow";
 
 export const dynamic = 'force-dynamic';
 
@@ -36,19 +37,30 @@ export async function POST(req: NextRequest) {
     const headers = Object.fromEntries(req.headers.entries());
     const timestamp = new Date().toISOString();
 
+    // Interpreta o sinal usando IA
+    let interpretation = null;
+    try {
+      const aiResult = await interpretPayload({ payloadJson: JSON.stringify(payload) });
+      interpretation = aiResult;
+    } catch (aiError) {
+      console.error("Erro na interpretação da IA:", aiError);
+    }
+
     await addDoc(collection(firestore, "webhooks"), {
       timestamp: timestamp,
       payload: payload,
       headers: headers,
       method: "POST",
-      createdAt: timestamp
+      createdAt: timestamp,
+      interpretation: interpretation
     });
 
     return NextResponse.json(
-      { ok: true, message: "Capturado" },
+      { ok: true, message: "Capturado e Interpretado pela IA" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
+    console.error("Erro no Webhook:", error);
     return NextResponse.json({ ok: false }, { status: 200, headers: corsHeaders });
   }
 }
@@ -62,6 +74,7 @@ export async function GET() {
       return {
         id: doc.id,
         receivedAt: data.timestamp,
+        interpretation: data.interpretation,
         debug: {
           payload: data.payload,
           headers: data.headers

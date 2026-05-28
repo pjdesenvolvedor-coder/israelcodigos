@@ -12,18 +12,25 @@ import {
   Timer,
   AlertCircle,
   LogOut,
-  Heart
+  Heart,
+  BrainCircuit,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, query, orderBy, limit, deleteDoc, getDocs, writeBatch } from "firebase/firestore";
+import { collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
 
 interface WebhookEntry {
   id: string;
   timestamp: string; 
+  interpretation?: {
+    interpretation: string;
+    extractedDetails: string[];
+  };
   payload: {
     Produto?: string;
     Assunto?: string;
@@ -38,6 +45,7 @@ export function WebhookDashboard() {
   const db = useFirestore();
   const [now, setNow] = useState<number>(Date.now());
   const [accessExpiresAt, setAccessExpiresAt] = useState<string | null>(null);
+  const [showAI, setShowAI] = useState(false);
 
   useEffect(() => {
     setAccessExpiresAt(localStorage.getItem("israel_access_expires"));
@@ -57,7 +65,8 @@ export function WebhookDashboard() {
       .map(doc => ({
         id: doc.id,
         timestamp: doc.timestamp,
-        payload: doc.payload
+        payload: doc.payload,
+        interpretation: doc.interpretation
       } as WebhookEntry))
       .filter(item => {
         const startTime = new Date(item.timestamp).getTime();
@@ -144,7 +153,7 @@ export function WebhookDashboard() {
           <div>
             <h1 className="text-xl font-black tracking-tighter text-blue-900 leading-none uppercase">ISRAEL05</h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Sinais Ativos</span>
+              <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest">Monitoramento Tático</span>
             </div>
           </div>
         </div>
@@ -194,6 +203,36 @@ export function WebhookDashboard() {
                     </span>
                   </div>
 
+                  {latestEntry.interpretation && (
+                    <div className="bg-slate-900 rounded-[25px] p-5 space-y-3 shadow-inner">
+                      <button 
+                        onClick={() => setShowAI(!showAI)}
+                        className="w-full flex items-center justify-between text-blue-400"
+                      >
+                        <div className="flex items-center gap-2">
+                          <BrainCircuit className="w-4 h-4" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Análise de IA</span>
+                        </div>
+                        {showAI ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                      
+                      {showAI && (
+                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <p className="text-[11px] font-bold text-slate-300 leading-relaxed">
+                            {latestEntry.interpretation.interpretation}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {latestEntry.interpretation.extractedDetails.map((detail, idx) => (
+                              <span key={idx} className="bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded-full text-[8px] font-black uppercase border border-blue-800/50">
+                                {detail}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-4 px-2">
                     <div className="flex flex-col gap-1">
                       <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Assinatura:</span>
@@ -233,39 +272,48 @@ export function WebhookDashboard() {
         {activeHistory.length > 1 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-3">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Sinais Ativos</h3>
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Histórico Ativo</h3>
               <ShieldCheck className="w-4 h-4 text-blue-200" />
             </div>
             
-            <div className="space-y-3">
+            <div className="space-y-3 pb-10">
               {activeHistory.slice(1).map((entry) => (
                 <div 
                   key={entry.id}
                   onClick={() => handleCopy(entry.payload.Conteudo)}
-                  className="bg-white p-5 rounded-[30px] border border-blue-50 flex items-center justify-between active:bg-blue-50 transition-all shadow-sm group"
+                  className="bg-white p-5 rounded-[30px] border border-blue-50 flex flex-col gap-3 active:bg-blue-50 transition-all shadow-sm group"
                 >
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{entry.payload.Produto}</span>
-                      <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
-                        <Clock className="w-2.5 h-2.5 text-blue-400" />
-                        <span className="text-[9px] font-mono font-bold text-blue-400">
-                          {formatTimeLeft(entry.timestamp)}
-                        </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{entry.payload.Produto}</span>
+                        <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
+                          <Clock className="w-2.5 h-2.5 text-blue-400" />
+                          <span className="text-[9px] font-mono font-bold text-blue-400">
+                            {formatTimeLeft(entry.timestamp)}
+                          </span>
+                        </div>
                       </div>
+                      <span className="text-2xl font-mono font-black text-blue-600 leading-none">{entry.payload.Conteudo}</span>
                     </div>
-                    <span className="text-2xl font-mono font-black text-blue-600 leading-none">{entry.payload.Conteudo}</span>
+                    <div className="bg-slate-50 p-3 rounded-2xl text-slate-300">
+                      <Copy className="w-4 h-4" />
+                    </div>
                   </div>
-                  <div className="bg-slate-50 p-3 rounded-2xl text-slate-300">
-                    <Copy className="w-4 h-4" />
-                  </div>
+                  {entry.interpretation && (
+                    <div className="pt-3 border-t border-slate-50">
+                      <p className="text-[9px] font-bold text-slate-400 line-clamp-2 italic leading-relaxed">
+                        "{entry.interpretation.interpretation}"
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        <footer className="mt-auto p-8 text-center flex items-center justify-center gap-2">
+        <footer className="mt-auto p-8 text-center flex items-center justify-center gap-2 shrink-0">
           <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">FEITO COM</span>
           <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
           <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">POR PJ DEV</span>
