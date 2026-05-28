@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
@@ -13,9 +12,10 @@ export async function POST(req: NextRequest) {
     const payload = await req.json();
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Salva no Firestore para atualização em tempo real no dashboard
+    // Salva no Firestore para atualização em tempo real no dashboard.
+    // Usamos isso apenas como um "relay" em tempo real.
     await addDoc(collection(db, "webhooks"), {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).substring(2, 9),
       timestamp: new Date().toISOString(),
       method: "POST",
       headers: headers,
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       status: "sucesso", 
       recebido: true,
-      mensagem: "Webhook processado e salvo com sucesso"
+      mensagem: "Webhook processado e transmitido com sucesso"
     }, { status: 200 });
   } catch (error) {
     console.error("Erro no Webhook:", error);
@@ -40,6 +40,6 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({ 
     mensagem: "Endpoint WebHookPulse Ativo", 
-    metodo: "Envie um POST para este link" 
+    instrucao: "Envie um POST para este link para ver os dados no painel" 
   });
 }
