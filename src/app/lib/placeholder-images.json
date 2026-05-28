@@ -1,0 +1,10 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Abstract data network visualization",
+      "imageUrl": "https://picsum.photos/seed/webhook/1200/800",
+      "imageHint": "network data"
+    }
+  ]
+}
