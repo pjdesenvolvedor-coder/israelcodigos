@@ -1,6 +1,3 @@
-
-'use client';
-
 /**
  * Configurações oficiais do projeto Receptor Israel
  * Atualizado via console manual
