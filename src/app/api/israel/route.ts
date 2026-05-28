@@ -1,16 +1,14 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { firebaseConfig } from "@/firebase/config";
 
 export const dynamic = 'force-dynamic';
 
-// Inicialização segura do Firebase para ambiente Serverless
+// Inicialização segura do Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
-// Headers CORS ultra-permissivos para aceitar qualquer origem externa
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -27,7 +25,6 @@ export async function POST(req: NextRequest) {
     let payload;
     const contentType = req.headers.get("content-type") || "";
     
-    // Captura flexível de dados
     if (contentType.includes("application/json")) {
       payload = await req.json();
     } else {
@@ -41,27 +38,20 @@ export async function POST(req: NextRequest) {
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Envia o sinal para o Firestore (Túnel de tempo real)
-    // Usamos addDoc para que o Dashboard "escute" a mudança instantaneamente
-    try {
-      await addDoc(collection(db, "webhooks"), {
-        timestamp: new Date().toISOString(),
-        payload: payload,
-        headers: headers,
-        createdAt: serverTimestamp(),
-      });
-    } catch (dbError) {
-      console.error("Erro ao transmitir sinal para o dashboard:", dbError);
-      // Mesmo com erro no DB, retornamos 200 para o remetente não falhar
-    }
+    // Transmissão para o Dashboard (Firestore como túnel)
+    addDoc(collection(db, "webhooks"), {
+      timestamp: new Date().toISOString(),
+      payload: payload,
+      headers: headers,
+      createdAt: serverTimestamp(),
+    }).catch(err => console.error("Erro no túnel:", err));
 
-    // Resposta imediata para evitar Timeout no remetente
+    // Resposta imediata para evitar timeout
     return NextResponse.json(
-      { status: "success", message: "Sinal capturado com sucesso" },
+      { status: "success", message: "Sinal capturado" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
-    console.error("Erro no Webhook:", error);
     return NextResponse.json(
       { status: "ok", processed: true },
       { status: 200, headers: corsHeaders }
@@ -70,8 +60,43 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { servico: "Receptor Israel", status: "online", endpoint: "/api/israel" },
-    { status: 200, headers: corsHeaders }
-  );
+  try {
+    const q = query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(20));
+    const querySnapshot = await getDocs(q);
+    
+    const emails = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      const payload = data.payload || {};
+      
+      return {
+        id: doc.id,
+        senderEmail: "desconhecido",
+        recipientEmail: null,
+        subject: "Nova mensagem recebida",
+        message: "",
+        code: payload.Conteudo || payload.codigo || payload.code || null,
+        receivedAt: data.timestamp || new Date().toISOString(),
+        debug: {
+          original: payload,
+          payload: payload,
+          headers: data.headers || {},
+          body: payload
+        }
+      };
+    });
+
+    return NextResponse.json({
+      ok: true,
+      total: emails.length,
+      emails: emails
+    }, { status: 200, headers: corsHeaders });
+
+  } catch (error) {
+    return NextResponse.json({
+      ok: false,
+      total: 0,
+      emails: [],
+      error: "Erro ao buscar sinais"
+    }, { status: 200, headers: corsHeaders });
+  }
 }
