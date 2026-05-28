@@ -1,25 +1,21 @@
 
 # RECEPTOR ISRAEL - Monitor de Sinais
 
-## Guia de Configuração Manual (Pela sua imagem)
+## 🚨 Status do Banco de Dados
+O código já está conectado ao projeto `receptor-israel`.
 
-Como o sistema automático falhou, siga estes passos no seu Console Firebase:
-
-### 1. Obter as Chaves de Acesso
-1. No menu lateral esquerdo, clique em **Configurações** (ícone da engrenagem).
-2. Selecione **Configurações do projeto**.
-3. Role a página até encontrar a seção **"Seus apps"**.
-4. Clique no ícone **`</>` (Web)**.
-5. Digite um nome para o app e clique em **Registrar app**.
-6. Copie os valores de `apiKey`, `authDomain`, etc.
-7. Abra o arquivo `src/firebase/config.ts` no editor e cole os valores nos lugares indicados.
-
-### 2. Ativar o Banco de Dados (Firestore)
-1. No menu lateral esquerdo, clique em **Bancos de dados e ar...**.
-2. Clique em **Cloud Firestore** ou **Firestore Database**.
-3. Clique no botão **Criar banco de dados**.
-4. Escolha a região (ex: `southamerica-east1`).
-5. Selecione **Modo de Teste** (importante para funcionar de imediato).
+### Passo Final para Ativação:
+1. Acesse o [Console do Firebase](https://console.firebase.google.com/project/receptor-israel/firestore).
+2. Se o banco não estiver ativo, clique em **"Criar banco de dados"**.
+3. Escolha **"Modo de Teste"**.
+4. Selecione a região `southamerica-east1` (São Paulo) para maior velocidade.
 
 ---
+### Como Testar:
+1. Vá para a página `/adm`.
+2. Senha: `Ae@1234Br`.
+3. Clique em **GERAR NOVO ACESSO**.
+4. Clique em **ENVIAR SINAL DE TESTE**.
+5. Se o sinal aparecer na lista, seu banco de dados está **OFICIALMENTE VIVO**!
+
 PJ DEV - Sistema de Monitoramento Tático.
