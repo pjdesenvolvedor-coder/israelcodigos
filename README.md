@@ -2,13 +2,25 @@
 # RECEPTOR ISRAEL - Monitor de Sinais
 
 ## 🚨 Status do Banco de Dados
-O código já está conectado ao projeto `receptor-israel`.
+O banco de dados foi criado no **Modo de Produção**. Você precisa liberar o acesso nas regras.
 
-### Passo Final para Ativação:
-1. Acesse o [Console do Firebase](https://console.firebase.google.com/project/receptor-israel/firestore).
-2. Se o banco não estiver ativo, clique em **"Criar banco de dados"**.
-3. Escolha **"Modo de Teste"**.
-4. Selecione a região `southamerica-east1` (São Paulo) para maior velocidade.
+### Como liberar o acesso (PASSO OBRIGATÓRIO):
+1. Acesse o [Console do Firebase - Regras](https://console.firebase.google.com/project/receptor-israel/firestore/rules).
+2. Substitua as regras atuais por estas:
+
+```javascript
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+```
+
+3. Clique em **PUBLICAR**.
 
 ---
 ### Como Testar:
@@ -16,6 +28,8 @@ O código já está conectado ao projeto `receptor-israel`.
 2. Senha: `Ae@1234Br`.
 3. Clique em **GERAR NOVO ACESSO**.
 4. Clique em **ENVIAR SINAL DE TESTE**.
-5. Se o sinal aparecer na lista, seu banco de dados está **OFICIALMENTE VIVO**!
+5. Vá para a Home e entre com o código gerado.
+
+Se o sinal aparecer, seu sistema está 100% ONLINE!
 
 PJ DEV - Sistema de Monitoramento Tático.
