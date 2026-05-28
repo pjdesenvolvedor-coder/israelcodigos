@@ -3,6 +3,7 @@
 
 /**
  * Configurações oficiais do projeto Receptor Israel
+ * Atualizado via console manual
  */
 export const firebaseConfig = {
   apiKey: "AIzaSyA1guhqMl-rbQO7KjM2yEzZUyf2bOQO4Qw",

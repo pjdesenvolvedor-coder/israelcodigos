@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut } from "lucide-react";
+import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, addDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs, serverTimestamp } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
@@ -49,6 +49,29 @@ export default function AdminPage() {
   const handleLogout = () => {
     setIsLogged(false);
     setPassInput("");
+  };
+
+  const sendTestSignal = async () => {
+    if (!db) return;
+    setLoading(true);
+    try {
+      const timestamp = new Date().toISOString();
+      await addDoc(collection(db, "webhooks"), {
+        timestamp: timestamp,
+        createdAt: timestamp,
+        method: "TEST",
+        payload: {
+          Produto: "TESTE DE CONEXÃO",
+          Assunto: "SINAL MANUAL",
+          Conteudo: Math.floor(1000 + Math.random() * 9000).toString()
+        }
+      });
+      toast({ title: "SINAL DE TESTE ENVIADO", className: "bg-green-600 text-white font-black rounded-2xl" });
+    } catch (err) {
+      toast({ variant: "destructive", title: "ERRO AO ENVIAR" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const generateCode = () => {
@@ -158,14 +181,26 @@ export default function AdminPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
-        <Button 
-          onClick={generateCode}
-          disabled={loading}
-          className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-3 shrink-0"
-        >
-          {loading ? <Loader2 className="animate-spin" /> : <Plus className="w-6 h-6" />}
-          GERAR NOVO ACESSO
-        </Button>
+        <div className="grid grid-cols-1 gap-4">
+          <Button 
+            onClick={generateCode}
+            disabled={loading}
+            className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-3 shrink-0"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : <Plus className="w-6 h-6" />}
+            GERAR NOVO ACESSO
+          </Button>
+
+          <Button 
+            onClick={sendTestSignal}
+            disabled={loading}
+            variant="outline"
+            className="w-full h-14 border-2 border-dashed border-blue-200 text-blue-600 font-black rounded-2xl hover:bg-blue-50 flex items-center justify-center gap-2"
+          >
+            <Send className="w-4 h-4" />
+            ENVIAR SINAL DE TESTE
+          </Button>
+        </div>
 
         <Tabs defaultValue="users" className="w-full">
           <TabsList className="w-full grid grid-cols-2 h-14 bg-white border-blue-50 rounded-2xl shadow-sm p-1">
