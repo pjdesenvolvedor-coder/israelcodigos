@@ -1,14 +1,11 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Query, 
   onSnapshot, 
   QuerySnapshot, 
-  DocumentData,
-  query,
-  collection
+  DocumentData 
 } from 'firebase/firestore';
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
@@ -37,13 +34,13 @@ export function useCollection<T = DocumentData>(
         setData(items);
         setLoading(false);
       },
-      async (err) => {
+      async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: (queryRef as any)._query?.path?.toString() || 'unknown',
           operation: 'list',
         });
         errorEmitter.emit('permission-error', permissionError);
-        setError(err);
+        setError(serverError);
         setLoading(false);
       }
     );
@@ -55,5 +52,5 @@ export function useCollection<T = DocumentData>(
 }
 
 export function useMemoFirebase<T>(factory: () => T, deps: any[]): T {
-  return useState(factory)[0];
+  return useMemo(factory, deps);
 }

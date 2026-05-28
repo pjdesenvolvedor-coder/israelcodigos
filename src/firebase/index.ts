@@ -1,4 +1,3 @@
-
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
@@ -18,29 +17,12 @@ let firestore: Firestore;
 let auth: Auth;
 
 export function initializeFirebase() {
-  try {
-    if (getApps().length > 0) {
-      app = getApp();
-    } else {
-      // Verifica se temos ao menos o projectId para tentar inicializar
-      if (firebaseConfig.projectId) {
-        app = initializeApp(firebaseConfig);
-      } else {
-        // Fallback para evitar erro crítico de inicialização
-        app = initializeApp({
-          apiKey: "dummy",
-          authDomain: "dummy",
-          projectId: "dummy-project",
-          storageBucket: "dummy",
-          messagingSenderId: "dummy",
-          appId: "dummy"
-        });
-      }
-    }
-    firestore = getFirestore(app);
-    auth = getAuth(app);
-  } catch (error) {
-    console.error("Erro ao inicializar Firebase:", error);
+  if (getApps().length > 0) {
+    app = getApp();
+  } else {
+    app = initializeApp(firebaseConfig);
   }
+  firestore = getFirestore(app);
+  auth = getAuth(app);
   return { app, firestore, auth };
 }

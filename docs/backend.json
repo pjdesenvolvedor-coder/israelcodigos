@@ -1,9 +1,8 @@
-
 {
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Sinais recebidos",
+      "description": "Sinais recebidos via webhook",
       "type": "object",
       "properties": {
         "timestamp": { "type": "string" },
@@ -14,7 +13,7 @@
     },
     "AccessCode": {
       "title": "AccessCode",
-      "description": "Códigos de acesso",
+      "description": "Códigos de acesso do sistema",
       "type": "object",
       "properties": {
         "code": { "type": "string" },
@@ -31,11 +30,11 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção de webhooks"
+      "description": "Coleção de registros de sinais"
     },
     "/access_codes/{codeId}": {
       "schema": "AccessCode",
-      "description": "Coleção de códigos"
+      "description": "Coleção de códigos de ativação"
     }
   }
 }
