@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2 } from "lucide-react";
+import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +42,12 @@ export default function AdminPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     fetchCodes(password);
+  };
+
+  const handleLogout = () => {
+    setIsLogged(false);
+    setPassword("");
+    setCodes([]);
   };
 
   const generateCode = async () => {
@@ -123,9 +129,19 @@ export default function AdminPage() {
           <Settings className="w-6 h-6 text-blue-600" />
           <h1 className="font-black text-blue-900 uppercase tracking-tighter">Gerenciador Israel</h1>
         </div>
-        <Button variant="ghost" size="icon" onClick={clearAll} className="text-slate-300 hover:text-red-500">
-          <Trash2 className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={handleLogout}
+            className="bg-red-500 hover:bg-red-600 text-white font-black rounded-xl text-[10px] h-8 px-4 uppercase tracking-widest shadow-lg shadow-red-100"
+          >
+            SAIR
+          </Button>
+          <Button variant="ghost" size="icon" onClick={clearAll} className="text-slate-300 hover:text-red-500">
+            <Trash2 className="w-5 h-5" />
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">

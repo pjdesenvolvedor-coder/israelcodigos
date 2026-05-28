@@ -208,9 +208,19 @@ export function WebhookDashboard() {
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={handleClear} className="text-slate-300 hover:text-red-500 rounded-full">
-          <Trash2 className="w-5 h-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={handleLogout}
+            className="bg-red-500 hover:bg-red-600 text-white font-black rounded-xl text-[10px] h-8 px-4 uppercase tracking-widest shadow-lg shadow-red-100"
+          >
+            SAIR
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleClear} className="text-slate-200 hover:text-red-500 rounded-full">
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
       </header>
 
       {/* Área de Conteúdo */}
