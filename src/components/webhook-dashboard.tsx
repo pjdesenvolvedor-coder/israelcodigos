@@ -11,7 +11,8 @@ import {
   Clock,
   Timer,
   AlertCircle,
-  LogOut
+  LogOut,
+  Heart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -316,8 +317,10 @@ export function WebhookDashboard() {
           </div>
         )}
 
-        <footer className="p-8 text-center">
-          <p className="text-[9px] font-black text-blue-200 uppercase tracking-[0.5em]">PROTEÇÃO TÁTICA ISRAEL05</p>
+        <footer className="p-8 text-center flex items-center justify-center gap-2">
+          <span className="text-[9px] font-black text-blue-200 uppercase tracking-widest">FEITO COM</span>
+          <Heart className="w-3 h-3 text-red-500 fill-red-500 animate-pulse" />
+          <span className="text-[9px] font-black text-blue-200 uppercase tracking-widest">POR PJ DEV</span>
         </footer>
       </main>
     </div>
