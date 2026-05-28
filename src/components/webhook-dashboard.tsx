@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, query, orderBy, limit, deleteDoc, getDocs, writeBatch } from "firebase/firestore";
 
 interface WebhookEntry {
   id: string;
@@ -33,86 +35,35 @@ const EXPIRATION_MS = 15 * 60 * 1000; // 15 minutos de validade do sinal
 
 export function WebhookDashboard() {
   const { toast } = useToast();
-  const [mounted, setMounted] = useState(false);
-  const [history, setHistory] = useState<WebhookEntry[]>([]);
+  const db = useFirestore();
   const [now, setNow] = useState<number>(Date.now());
   const [accessExpiresAt, setAccessExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem("israel_mobile_v4");
-    const expiresAt = localStorage.getItem("israel_access_expires");
-    setAccessExpiresAt(expiresAt);
-
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        const currentTime = Date.now();
-        const valid = parsed.filter((item: WebhookEntry) => 
-          (currentTime - new Date(item.timestamp).getTime()) < EXPIRATION_MS
-        );
-        setHistory(valid);
-      } catch (e) {
-        console.error("Erro ao carregar LocalStorage");
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
+    setAccessExpiresAt(localStorage.getItem("israel_access_expires"));
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
+  const webhooksQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(20));
+  }, [db]);
 
-    const fetchSignals = async () => {
-      try {
-        const res = await fetch("/api/israel");
-        const data = await res.json();
-        if (data.ok && data.emails) {
-          const currentTime = Date.now();
-          const newSignals: WebhookEntry[] = data.emails
-            .map((e: any) => ({
-              id: e.id,
-              timestamp: e.receivedAt,
-              payload: e.debug.payload
-            }))
-            .filter((s: WebhookEntry) => (currentTime - new Date(s.timestamp).getTime()) < EXPIRATION_MS);
-
-          setHistory(prev => {
-            const existingIds = new Set(prev.map(s => s.id));
-            const fresh = newSignals.filter(s => !existingIds.has(s.id));
-            
-            if (fresh.length > 0) {
-              const updated = [...fresh, ...prev];
-              localStorage.setItem("israel_mobile_v4", JSON.stringify(updated));
-              return updated;
-            }
-            return prev;
-          });
-        }
-      } catch (e) {}
-    };
-
-    const interval = setInterval(fetchSignals, 3000);
-    return () => clearInterval(interval);
-  }, [mounted]);
+  const { data: rawData = [] } = useCollection<any>(webhooksQuery);
 
   const activeHistory = useMemo(() => {
-    const filtered = history.filter(item => {
-      const startTime = new Date(item.timestamp).getTime();
-      return (now - startTime) < EXPIRATION_MS;
-    });
-
-    if (filtered.length !== history.length) {
-      localStorage.setItem("israel_mobile_v4", JSON.stringify(filtered));
-    }
-
-    return filtered;
-  }, [history, now]);
+    return (rawData || [])
+      .map(doc => ({
+        id: doc.id,
+        timestamp: doc.timestamp,
+        payload: doc.payload
+      } as WebhookEntry))
+      .filter(item => {
+        const startTime = new Date(item.timestamp).getTime();
+        return (now - startTime) < EXPIRATION_MS;
+      });
+  }, [rawData, now]);
 
   const isAccessExpired = useMemo(() => {
     if (!accessExpiresAt) return false;
@@ -141,21 +92,20 @@ export function WebhookDashboard() {
     navigator.clipboard.writeText(code);
     toast({
       title: "COPIADO",
-      description: "Código pronto para uso.",
       className: "bg-blue-600 border-none text-white font-black rounded-2xl",
     });
   };
 
   const handleClear = async () => {
-    try {
-      await fetch("/api/israel", { method: "DELETE" });
-      setHistory([]);
-      localStorage.removeItem("israel_mobile_v4");
-      toast({ 
-        title: "HISTÓRICO LIMPO",
-        className: "bg-blue-600 border-none text-white font-black rounded-2xl",
-      });
-    } catch (error) {}
+    if (!db) return;
+    const snapshot = await getDocs(collection(db, "webhooks"));
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    toast({ 
+      title: "HISTÓRICO LIMPO",
+      className: "bg-blue-600 border-none text-white font-black rounded-2xl",
+    });
   };
 
   const handleLogout = () => {
@@ -163,8 +113,6 @@ export function WebhookDashboard() {
     localStorage.removeItem("israel_access_expires");
     window.location.reload();
   };
-
-  if (!mounted) return null;
 
   return (
     <div className="h-screen bg-slate-50 text-slate-900 font-sans max-w-md mx-auto flex flex-col overflow-hidden relative">
@@ -216,7 +164,7 @@ export function WebhookDashboard() {
       </header>
 
       <main className={cn(
-        "flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-hide transition-all duration-700 flex flex-col",
+        "flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-hide flex flex-col",
         isAccessExpired && "blur-sm grayscale opacity-50 pointer-events-none"
       )}>
         
@@ -241,7 +189,7 @@ export function WebhookDashboard() {
                     </div>
                     
                     <span className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em] mb-2">Código Israel</span>
-                    <span className="text-7xl font-black font-mono tracking-tighter text-blue-600 animate-pulse-blue">
+                    <span className="text-7xl font-black font-mono tracking-tighter text-blue-600">
                       {latestEntry.payload.Conteudo || "----"}
                     </span>
                   </div>
@@ -259,7 +207,7 @@ export function WebhookDashboard() {
 
                   <Button 
                     onClick={() => handleCopy(latestEntry.payload.Conteudo)}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black h-16 rounded-[24px] text-lg shadow-xl shadow-blue-100 active:scale-95 transition-all flex items-center justify-center gap-3"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black h-16 rounded-[24px] text-lg shadow-xl shadow-blue-100 active:scale-95 flex items-center justify-center gap-3"
                   >
                     <Copy className="w-5 h-5" />
                     COPIAR AGORA

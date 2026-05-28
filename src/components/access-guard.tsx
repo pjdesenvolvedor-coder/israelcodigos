@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useFirestore } from "@/firebase";
+import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 
 interface AccessGuardProps {
   children: React.ReactNode;
@@ -17,6 +19,7 @@ export function AccessGuard({ children }: AccessGuardProps) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const db = useFirestore();
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -40,40 +43,51 @@ export function AccessGuard({ children }: AccessGuardProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code) return;
+    if (!code || !db) return;
 
     setLoading(true);
     try {
-      const res = await fetch("/api/access-codes", {
-        method: "POST",
-        body: JSON.stringify({ action: "validate", code: code.toUpperCase() }),
-        headers: { "Content-Type": "application/json" }
-      });
+      const q = query(collection(db, "access_codes"), where("code", "==", code.toUpperCase()));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        toast({ variant: "destructive", title: "CÓDIGO INVÁLIDO" });
+        setLoading(false);
+        return;
+      }
 
-      const data = await res.json();
+      const docSnap = snapshot.docs[0];
+      const data = docSnap.data();
 
-      if (data.valid) {
+      if (data.usedAt && data.expiresAt) {
+        if (new Date() > new Date(data.expiresAt)) {
+          toast({ variant: "destructive", title: "CÓDIGO EXPIRADO" });
+          setLoading(false);
+          return;
+        }
         localStorage.setItem("israel_access_token", code.toUpperCase());
         localStorage.setItem("israel_access_expires", data.expiresAt);
         setIsAuthorized(true);
+      } else {
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+        const expiresAtStr = expiresAt.toISOString();
+
+        await updateDoc(doc(db, "access_codes", docSnap.id), {
+          usedAt: new Date().toISOString(),
+          expiresAt: expiresAtStr
+        });
+
+        localStorage.setItem("israel_access_token", code.toUpperCase());
+        localStorage.setItem("israel_access_expires", expiresAtStr);
+        setIsAuthorized(true);
         toast({
           title: "ACESSO LIBERADO",
-          description: "Bem-vindo ao sistema Receptor Israel.",
           className: "bg-blue-600 border-none text-white font-black rounded-2xl",
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "CÓDIGO INVÁLIDO",
-          description: data.message || "Verifique seu código de acesso.",
         });
       }
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "ERRO DE CONEXÃO",
-        description: "Não foi possível validar seu código.",
-      });
+      toast({ variant: "destructive", title: "ERRO DE CONEXÃO" });
     } finally {
       setLoading(false);
     }
@@ -118,7 +132,7 @@ export function AccessGuard({ children }: AccessGuardProps) {
 
               <Button 
                 disabled={loading}
-                className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[24px] text-lg shadow-xl shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[24px] text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="animate-spin" /> : "ENTRAR NO SISTEMA"}
                 {!loading && <ArrowRight className="w-5 h-5" />}

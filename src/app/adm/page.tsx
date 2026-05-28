@@ -1,84 +1,87 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useFirestore, useCollection } from "@/firebase";
+import { collection, addDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs } from "firebase/firestore";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 interface AccessCode {
+  id: string;
   code: string;
   createdAt: string;
   usedAt: string | null;
   expiresAt: string | null;
 }
 
+const ADMIN_PASSWORD = "Ae@1234Br";
+
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
+  const [passInput, setPassInput] = useState("");
   const [isLogged, setIsLogged] = useState(false);
-  const [codes, setCodes] = useState<AccessCode[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const db = useFirestore();
 
-  const fetchCodes = async (currentPass: string) => {
-    try {
-      const res = await fetch("/api/access-codes", {
-        headers: { "Authorization": currentPass }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCodes(data.codes || []);
-        setIsLogged(true);
-      } else {
-        toast({ variant: "destructive", title: "Senha Incorreta" });
-      }
-    } catch (e) {}
-  };
+  const codesQuery = useMemo(() => {
+    if (!db) return null;
+    return query(collection(db, "access_codes"), orderBy("createdAt", "desc"));
+  }, [db]);
+
+  const { data: codes = [] } = useCollection<AccessCode>(codesQuery);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchCodes(password);
+    if (passInput === ADMIN_PASSWORD) {
+      setIsLogged(true);
+    } else {
+      toast({ variant: "destructive", title: "Senha Incorreta" });
+    }
   };
 
   const handleLogout = () => {
     setIsLogged(false);
-    setPassword("");
-    setCodes([]);
+    setPassInput("");
   };
 
   const generateCode = async () => {
+    if (!db) return;
     setLoading(true);
-    try {
-      const res = await fetch("/api/access-codes", {
-        method: "POST",
-        body: JSON.stringify({ action: "generate", password }),
-        headers: { "Content-Type": "application/json" }
-      });
-      if (res.ok) {
-        toast({ title: "CÓDIGO GERADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
-        fetchCodes(password);
-      }
-    } catch (e) {
-      toast({ variant: "destructive", title: "Erro ao gerar" });
-    } finally {
-      setLoading(false);
-    }
+    const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
+    addDoc(collection(db, "access_codes"), {
+      code: newCode,
+      createdAt: new Date().toISOString(),
+      usedAt: null,
+      expiresAt: null
+    }).catch(async (err) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: 'access_codes',
+        operation: 'create',
+        requestResourceData: { code: newCode }
+      }));
+    }).finally(() => setLoading(false));
+
+    toast({ title: "CÓDIGO GERADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
   };
 
   const clearAll = async () => {
-    if (!confirm("Tem certeza que deseja apagar todos os registros?")) return;
-    try {
-      await fetch("/api/access-codes", {
-        method: "DELETE",
-        headers: { "Authorization": password }
-      });
-      setCodes([]);
+    if (!db || !confirm("Tem certeza que deseja apagar todos os registros?")) return;
+    
+    const snapshot = await getDocs(collection(db, "access_codes"));
+    const batch = writeBatch(db);
+    snapshot.docs.forEach((d) => batch.delete(d.ref));
+    
+    batch.commit().then(() => {
       toast({ title: "LIMPEZA CONCLUÍDA", className: "bg-blue-600 text-white font-black rounded-2xl" });
-    } catch (e) {}
+    });
   };
 
   const copyCode = (c: string) => {
@@ -86,7 +89,6 @@ export default function AdminPage() {
     toast({ title: "COPIADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
   };
 
-  // Separação dos códigos
   const activeUsers = useMemo(() => codes.filter(c => c.usedAt !== null), [codes]);
   const pendingCodes = useMemo(() => codes.filter(c => c.usedAt === null), [codes]);
 
@@ -95,7 +97,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <Settings className="w-16 h-16 text-blue-500 mx-auto mb-4 animate-spin-slow" />
+            <Settings className="w-16 h-16 text-blue-500 mx-auto mb-4" />
             <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Painel de Controle</h1>
             <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Administração Receptor Israel</p>
           </div>
@@ -106,8 +108,8 @@ export default function AdminPage() {
                   <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-2">Senha Mestra</label>
                   <Input 
                     type="password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={passInput}
+                    onChange={(e) => setPassInput(e.target.value)}
                     className="h-14 bg-slate-900 border-slate-700 text-white font-bold rounded-2xl"
                   />
                 </div>
@@ -172,8 +174,8 @@ export default function AdminPage() {
                   <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum usuário ativo</p>
                 </div>
               ) : (
-                activeUsers.map((item, idx) => (
-                  <Card key={idx} className="bg-white border-green-50 rounded-[25px] shadow-sm overflow-hidden border-l-4 border-l-green-500">
+                activeUsers.map((item) => (
+                  <Card key={item.id} className="bg-white border-green-50 rounded-[25px] shadow-sm overflow-hidden border-l-4 border-l-green-500">
                     <CardContent className="p-5 flex items-center justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -203,8 +205,8 @@ export default function AdminPage() {
                   <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum código pendente</p>
                 </div>
               ) : (
-                pendingCodes.map((item, idx) => (
-                  <Card key={idx} className="bg-white border-blue-50 rounded-[25px] shadow-sm hover:shadow-md transition-all overflow-hidden border-l-4 border-l-blue-200">
+                pendingCodes.map((item) => (
+                  <Card key={item.id} className="bg-white border-blue-50 rounded-[25px] shadow-sm hover:shadow-md transition-all overflow-hidden border-l-4 border-l-blue-200">
                     <CardContent className="p-5 flex items-center justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
