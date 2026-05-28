@@ -1,13 +1,9 @@
+
 import { NextRequest, NextResponse } from "next/server";
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { firebaseConfig } from "@/firebase/config";
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { initializeFirebase } from "@/firebase";
 
 export const dynamic = 'force-dynamic';
-
-// Inicialização segura para o ambiente de API
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +16,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  const { firestore: db } = initializeFirebase();
   try {
     let payload;
     const contentType = req.headers.get("content-type") || "";
@@ -37,17 +34,16 @@ export async function POST(req: NextRequest) {
 
     const headers = Object.fromEntries(req.headers.entries());
     
-    // Relay para o Firestore - SEM AWAIT para não travar o remetente
     addDoc(collection(db, "webhooks"), {
       timestamp: new Date().toISOString(),
       payload: payload,
       headers: headers,
       createdAt: serverTimestamp(),
       method: "POST"
-    }).catch(err => console.error("Erro no relay:", err));
+    }).catch(err => console.error("Firestore Relay Error:", err));
 
     return NextResponse.json(
-      { ok: true, message: "Sinal capturado" },
+      { ok: true, message: "Sinal capturado com sucesso" },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
@@ -59,11 +55,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  const { firestore: db } = initializeFirebase();
   try {
-    const q = query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(20));
+    const q = query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(50));
     const querySnapshot = await getDocs(q);
     
-    const emails = querySnapshot.docs.map(doc => {
+    const signals = querySnapshot.docs.map(doc => {
       const data = doc.data();
       const payload = data.payload || {};
       
@@ -86,8 +83,8 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
-      total: emails.length,
-      emails: emails
+      total: signals.length,
+      emails: signals
     }, { status: 200, headers: corsHeaders });
 
   } catch (error) {
@@ -95,7 +92,7 @@ export async function GET() {
       ok: false,
       total: 0,
       emails: [],
-      error: "Erro ao buscar dados"
+      error: "Falha na sincronização"
     }, { status: 200, headers: corsHeaders });
   }
 }

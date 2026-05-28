@@ -3,7 +3,7 @@
   "entities": {
     "Webhook": {
       "title": "Webhook",
-      "description": "Uma entrada de webhook recebida pelo sistema.",
+      "description": "Entrada de sinal recebida pelo sistema.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -17,9 +17,10 @@
             "summary": { "type": "string" },
             "codes": { "type": "array", "items": { "type": "string" } }
           }
-        }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "timestamp", "method", "payload"]
+      "required": ["id", "timestamp", "payload", "createdAt"]
     }
   },
   "auth": {
@@ -28,7 +29,7 @@
   "firestore": {
     "/webhooks/{webhookId}": {
       "schema": "Webhook",
-      "description": "Coleção global de todos os webhooks recebidos."
+      "description": "Coleção de sinais recebidos via API."
     }
   }
 }
