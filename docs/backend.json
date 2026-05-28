@@ -1,0 +1,34 @@
+
+{
+  "entities": {
+    "Webhook": {
+      "title": "Webhook",
+      "description": "Uma entrada de webhook recebida pelo sistema.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "method": { "type": "string" },
+        "headers": { "type": "object" },
+        "payload": { "type": "object" },
+        "interpretation": {
+          "type": "object",
+          "properties": {
+            "summary": { "type": "string" },
+            "codes": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "required": ["id", "timestamp", "method", "payload"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/webhooks/{webhookId}": {
+      "schema": "Webhook",
+      "description": "Coleção global de todos os webhooks recebidos."
+    }
+  }
+}
