@@ -1,9 +1,8 @@
-
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
 
-// Memória temporária no servidor (limpa ao reiniciar/redesdobrar)
+// Memória temporária no servidor (reseta ao reiniciar o servidor/deploy)
 let signals: any[] = [];
 
 const corsHeaders = {
@@ -33,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     const headers = Object.fromEntries(req.headers.entries());
-    const id = Math.random().toString(36).substring(2, 15);
+    const id = `ID-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
     const timestamp = new Date().toISOString();
 
     const newSignal = {
@@ -45,11 +44,11 @@ export async function POST(req: NextRequest) {
       createdAt: timestamp
     };
 
-    // Adiciona ao início da lista
+    // Adiciona ao início e mantém apenas os últimos 100 na memória do servidor
     signals = [newSignal, ...signals].slice(0, 100);
 
     return NextResponse.json(
-      { ok: true, message: "Sinal capturado com sucesso", id },
+      { ok: true, message: "Sinal capturado", id },
       { status: 200, headers: corsHeaders }
     );
   } catch (error) {
@@ -61,6 +60,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  // Mapeia para o formato exato solicitado pelo usuário
   const emails = signals.map(s => {
     const payload = s.payload || {};
     return {
