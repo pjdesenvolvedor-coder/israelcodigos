@@ -2,8 +2,8 @@ import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'WebHookPulse | AI-Powered Webhook Monitoring',
-  description: 'Real-time webhook analysis and payload interpretation with GenAI.',
+  title: 'WebHookPulse | Monitoramento de Webhooks com IA',
+  description: 'Análise de webhooks em tempo real e interpretação de payloads com GenAI.',
 };
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="pt-BR">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
