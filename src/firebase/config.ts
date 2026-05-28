@@ -1,12 +1,15 @@
+
 'use client';
 
 /**
  * CONFIGURAÇÃO MANUAL DO FIREBASE
  * 
- * Se o "Set Up" automático falhar, siga estes passos:
- * 1. Vá para https://console.firebase.google.com/
- * 2. Crie um projeto e adicione um "Web App".
- * 3. Copie os valores do objeto 'firebaseConfig' e cole abaixo.
+ * 1. Acesse: https://console.firebase.google.com/
+ * 2. Crie um projeto e adicione um App Web.
+ * 3. Copie as credenciais e substitua os valores abaixo.
+ * 
+ * O link direto para o seu banco de dados (Firestore) será:
+ * https://console.firebase.google.com/project/SEU-PROJECT-ID/firestore
  */
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "COLE_AQUI_SUA_API_KEY",
