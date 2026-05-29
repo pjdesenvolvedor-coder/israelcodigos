@@ -15,7 +15,8 @@ import {
   Heart,
   BrainCircuit,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,22 +46,49 @@ export function WebhookDashboard() {
   const db = useFirestore();
   const [now, setNow] = useState<number>(Date.now());
   const [accessExpiresAt, setAccessExpiresAt] = useState<string | null>(null);
+  const [sessionStart, setSessionStart] = useState<string | null>(null);
+  const [dailyLimit, setDailyLimit] = useState<number>(50);
   const [showAI, setShowAI] = useState(false);
 
   useEffect(() => {
     setAccessExpiresAt(localStorage.getItem("israel_access_expires"));
+    setSessionStart(localStorage.getItem("israel_session_start"));
+    const limitVal = localStorage.getItem("israel_daily_limit");
+    if (limitVal) setDailyLimit(parseInt(limitVal));
+    
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   const webhooksQuery = useMemo(() => {
     if (!db) return null;
-    return query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(20));
+    return query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(50));
   }, [db]);
 
   const { data: rawData = [] } = useCollection<any>(webhooksQuery);
 
+  // Contador de sinais usados hoje (salvo localmente por simplicidade tática)
+  const [usedTodayCount, setUsedTodayCount] = useState(0);
+
+  useEffect(() => {
+    const today = new Date().toLocaleDateString();
+    const storedDay = localStorage.getItem("israel_usage_day");
+    const storedCount = localStorage.getItem("israel_usage_count");
+
+    if (storedDay !== today) {
+      localStorage.setItem("israel_usage_day", today);
+      localStorage.setItem("israel_usage_count", "0");
+      setUsedTodayCount(0);
+    } else if (storedCount) {
+      setUsedTodayCount(parseInt(storedCount));
+    }
+  }, []);
+
   const activeHistory = useMemo(() => {
+    if (!sessionStart) return [];
+    
+    const sessionStartTime = new Date(sessionStart).getTime();
+
     return (rawData || [])
       .map(doc => ({
         id: doc.id,
@@ -69,15 +97,24 @@ export function WebhookDashboard() {
         interpretation: doc.interpretation
       } as WebhookEntry))
       .filter(item => {
-        const startTime = new Date(item.timestamp).getTime();
-        return (now - startTime) < EXPIRATION_MS;
+        const itemTime = new Date(item.timestamp).getTime();
+        // Regra 1: Sinais expiram em 15 min
+        const isNotExpired = (now - itemTime) < EXPIRATION_MS;
+        // Regra 2: Apenas sinais que chegaram DEPOIS do login
+        const isAfterLogin = itemTime >= sessionStartTime;
+        
+        return isNotExpired && isAfterLogin;
       });
-  }, [rawData, now]);
+  }, [rawData, now, sessionStart]);
 
   const isAccessExpired = useMemo(() => {
     if (!accessExpiresAt) return false;
     return now > new Date(accessExpiresAt).getTime();
   }, [accessExpiresAt, now]);
+
+  const isLimitReached = useMemo(() => {
+    return usedTodayCount >= dailyLimit;
+  }, [usedTodayCount, dailyLimit]);
 
   const daysRemaining = useMemo(() => {
     if (!accessExpiresAt) return 0;
@@ -98,9 +135,26 @@ export function WebhookDashboard() {
 
   const handleCopy = (code?: string) => {
     if (!code) return;
+
+    if (isLimitReached) {
+      toast({
+        variant: "destructive",
+        title: "LIMITE DIÁRIO ATINGIDO",
+        description: `Você já consumiu seus ${dailyLimit} sinais de hoje.`
+      });
+      return;
+    }
+
     navigator.clipboard.writeText(code);
+    
+    // Incrementa o contador
+    const newCount = usedTodayCount + 1;
+    setUsedTodayCount(newCount);
+    localStorage.setItem("israel_usage_count", newCount.toString());
+
     toast({
-      title: "COPIADO",
+      title: "CÓDIGO COPIADO",
+      description: `Sinais de hoje: ${newCount}/${dailyLimit}`,
       className: "bg-blue-600 border-none text-white font-black rounded-2xl",
     });
   };
@@ -120,6 +174,8 @@ export function WebhookDashboard() {
   const handleLogout = () => {
     localStorage.removeItem("israel_access_token");
     localStorage.removeItem("israel_access_expires");
+    localStorage.removeItem("israel_session_start");
+    localStorage.removeItem("israel_daily_limit");
     window.location.reload();
   };
 
@@ -177,17 +233,36 @@ export function WebhookDashboard() {
         isAccessExpired && "blur-sm grayscale opacity-50 pointer-events-none"
       )}>
         
-        <div className="flex items-center justify-center gap-2 bg-white shadow-sm border border-blue-100 py-2.5 px-5 rounded-full mx-auto w-fit">
-          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-          <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
-            {daysRemaining} DIAS RESTANTES DE ACESSO
-          </span>
+        <div className="flex flex-col items-center gap-2">
+           <div className="flex items-center justify-center gap-2 bg-white shadow-sm border border-blue-100 py-2.5 px-5 rounded-full w-fit">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
+              {daysRemaining} DIAS RESTANTES DE ACESSO
+            </span>
+          </div>
+          <div className="flex items-center justify-center gap-2 bg-slate-900 py-1.5 px-4 rounded-full w-fit">
+            <span className="text-[8px] font-black text-blue-400 uppercase tracking-[0.2em]">
+              SINAIS HOJE: {usedTodayCount} / {dailyLimit}
+            </span>
+          </div>
         </div>
 
         <div className="space-y-4">
           <Card className="bg-white border-none rounded-[40px] shadow-[0_30px_60px_rgba(0,0,0,0.05)] overflow-hidden">
             <CardContent className="p-7 space-y-6">
-              {latestEntry ? (
+              {isLimitReached ? (
+                 <div className="py-16 flex flex-col items-center justify-center text-center space-y-6">
+                  <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center">
+                    <Lock className="w-8 h-8 text-red-500" />
+                  </div>
+                  <div className="space-y-1">
+                    <h2 className="text-lg font-black text-red-600 uppercase">LIMITE ATINGIDO</h2>
+                    <p className="text-slate-400 font-bold text-[9px] uppercase tracking-widest">
+                      Você atingiu seu limite diário.<br/>Retorne amanhã ou contate suporte.
+                    </p>
+                  </div>
+                </div>
+              ) : latestEntry ? (
                 <>
                   <div className="bg-blue-50 border border-blue-100 rounded-[35px] py-10 flex flex-col items-center justify-center relative overflow-hidden">
                     <div className="absolute top-4 right-6 flex items-center gap-1.5 bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full border border-blue-200 shadow-sm">
@@ -258,9 +333,9 @@ export function WebhookDashboard() {
                     <Zap className="w-10 h-10 text-blue-300" />
                   </div>
                   <div className="space-y-1">
-                    <h2 className="text-xl font-black text-blue-900 uppercase tracking-tight">Sem Sinais</h2>
+                    <h2 className="text-xl font-black text-blue-900 uppercase tracking-tight">Escaneando...</h2>
                     <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] leading-relaxed">
-                      Escaneando frequências...<br/>Aguardando entrada.
+                      Mostrando apenas sinais que<br/>chegarem após seu acesso.
                     </p>
                   </div>
                 </div>
@@ -269,10 +344,10 @@ export function WebhookDashboard() {
           </Card>
         </div>
 
-        {activeHistory.length > 1 && (
+        {activeHistory.length > 1 && !isLimitReached && (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-3">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Histórico Ativo</h3>
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Histórico Pós-Login</h3>
               <ShieldCheck className="w-4 h-4 text-blue-200" />
             </div>
             
@@ -300,13 +375,6 @@ export function WebhookDashboard() {
                       <Copy className="w-4 h-4" />
                     </div>
                   </div>
-                  {entry.interpretation && (
-                    <div className="pt-3 border-t border-slate-50">
-                      <p className="text-[9px] font-bold text-slate-400 line-clamp-2 italic leading-relaxed">
-                        "{entry.interpretation.interpretation}"
-                      </p>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -314,9 +382,9 @@ export function WebhookDashboard() {
         )}
 
         <footer className="mt-auto p-8 text-center flex items-center justify-center gap-2 shrink-0">
-          <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">FEITO COM</span>
-          <Heart className="w-4 h-4 text-red-500 fill-red-500 animate-pulse" />
-          <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">POR PJ DEV</span>
+          <span className="text-[11px] font-black text-slate-900 uppercase tracking-widest">SESSÃO ATIVA</span>
+          <div className="w-1 h-1 bg-green-500 rounded-full animate-ping" />
+          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">PJ DEV</span>
         </footer>
       </main>
     </div>

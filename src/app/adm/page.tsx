@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut, Send, Wifi, WifiOff } from "lucide-react";
+import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut, Send, Wifi, WifiOff, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, addDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs, setDoc } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ interface AccessCode {
   createdAt: string;
   usedAt: string | null;
   expiresAt: string | null;
+  dailyLimit: number;
 }
 
 const ADMIN_PASSWORD = "Ae@1234Br";
@@ -29,6 +30,7 @@ export default function AdminPage() {
   const [isLogged, setIsLogged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'error'>('checking');
+  const [dailyLimitInput, setDailyLimitInput] = useState("50");
   const { toast } = useToast();
   const db = useFirestore();
 
@@ -39,7 +41,6 @@ export default function AdminPage() {
 
   const { data: codes = [] } = useCollection<AccessCode>(codesQuery);
 
-  // Teste de conexão real ao montar o painel
   useEffect(() => {
     if (isLogged && db) {
       const checkConnection = async () => {
@@ -48,7 +49,6 @@ export default function AdminPage() {
           await setDoc(testDoc, { lastCheck: new Date().toISOString() });
           setDbStatus('online');
         } catch (err) {
-          console.error(err);
           setDbStatus('error');
         }
       };
@@ -102,7 +102,8 @@ export default function AdminPage() {
       code: newCode,
       createdAt: new Date().toISOString(),
       usedAt: null,
-      expiresAt: null
+      expiresAt: null,
+      dailyLimit: parseInt(dailyLimitInput) || 50
     };
 
     addDoc(collection(db, "access_codes"), data)
@@ -201,7 +202,6 @@ export default function AdminPage() {
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
         
-        {/* Status da Conexão */}
         <div className={cn(
           "p-4 rounded-2xl flex items-center justify-between",
           dbStatus === 'online' ? "bg-green-50 border border-green-100" : 
@@ -224,7 +224,21 @@ export default function AdminPage() {
           {dbStatus === 'online' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-2">Limite de Sinais por Dia</label>
+            <div className="relative">
+              <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
+              <Input 
+                type="number" 
+                value={dailyLimitInput}
+                onChange={(e) => setDailyLimitInput(e.target.value)}
+                placeholder="Ex: 50"
+                className="h-12 pl-12 bg-white border-blue-100 font-bold rounded-2xl text-blue-900"
+              />
+            </div>
+          </div>
+          
           <Button 
             onClick={generateCode}
             disabled={loading || dbStatus !== 'online'}
@@ -272,7 +286,7 @@ export default function AdminPage() {
                           <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
                         </div>
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[8px] font-black text-slate-400 uppercase">Ativado em: {new Date(item.usedAt!).toLocaleDateString()}</span>
+                          <span className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit} sinais/dia</span>
                           <span className="text-[8px] font-black text-blue-500 uppercase">Expira em: {new Date(item.expiresAt!).toLocaleDateString()}</span>
                         </div>
                       </div>
@@ -302,7 +316,7 @@ export default function AdminPage() {
                           <Clock className="w-3 h-3 text-blue-300" />
                           <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
                         </div>
-                        <span className="text-[8px] font-black text-slate-400 uppercase">Gerado em: {new Date(item.createdAt).toLocaleDateString()}</span>
+                        <span className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit} | Criado: {new Date(item.createdAt).toLocaleDateString()}</span>
                       </div>
                       <Button variant="ghost" size="icon" onClick={() => copyCode(item.code)} className="bg-slate-50 text-slate-400 rounded-xl hover:text-blue-600">
                         <Copy className="w-4 h-4" />

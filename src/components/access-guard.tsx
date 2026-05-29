@@ -32,6 +32,8 @@ export function AccessGuard({ children }: AccessGuardProps) {
         if (new Date() > new Date(expiresAt)) {
           localStorage.removeItem("israel_access_token");
           localStorage.removeItem("israel_access_expires");
+          localStorage.removeItem("israel_session_start");
+          localStorage.removeItem("israel_daily_limit");
           setIsAuthorized(false);
         } else {
           setIsAuthorized(true);
@@ -61,6 +63,10 @@ export function AccessGuard({ children }: AccessGuardProps) {
       const docSnap = snapshot.docs[0];
       const data = docSnap.data();
 
+      // Grava o horário da sessão (apenas sinais após este horário serão mostrados)
+      const sessionStart = new Date().toISOString();
+      const dailyLimit = data.dailyLimit || 50;
+
       if (data.usedAt && data.expiresAt) {
         if (new Date() > new Date(data.expiresAt)) {
           toast({ variant: "destructive", title: "CÓDIGO EXPIRADO" });
@@ -69,6 +75,8 @@ export function AccessGuard({ children }: AccessGuardProps) {
         }
         localStorage.setItem("israel_access_token", code.toUpperCase());
         localStorage.setItem("israel_access_expires", data.expiresAt);
+        localStorage.setItem("israel_session_start", sessionStart);
+        localStorage.setItem("israel_daily_limit", dailyLimit.toString());
         setIsAuthorized(true);
       } else {
         const expiresAt = new Date();
@@ -92,6 +100,8 @@ export function AccessGuard({ children }: AccessGuardProps) {
 
         localStorage.setItem("israel_access_token", code.toUpperCase());
         localStorage.setItem("israel_access_expires", expiresAtStr);
+        localStorage.setItem("israel_session_start", sessionStart);
+        localStorage.setItem("israel_daily_limit", dailyLimit.toString());
         setIsAuthorized(true);
         toast({
           title: "ACESSO LIBERADO",
