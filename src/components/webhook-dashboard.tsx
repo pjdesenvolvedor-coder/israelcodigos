@@ -149,7 +149,7 @@ export function WebhookDashboard() {
         </div>
       )}
 
-      <header className="p-6 flex items-center justify-between bg-white border-b shrink-0">
+      <header className="sticky top-0 z-50 p-6 flex items-center justify-between bg-white border-b shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-xl">
             <Smartphone className="w-5 h-5 text-white" />

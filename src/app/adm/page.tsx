@@ -219,7 +219,7 @@ export default function AdminPage() {
 
   return (
     <div className="h-screen bg-slate-50 max-w-md mx-auto flex flex-col overflow-hidden">
-      <header className="p-6 bg-white border-b flex items-center justify-between shrink-0">
+      <header className="sticky top-0 z-50 p-6 bg-white border-b flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex flex-col">
           <h1 className="font-black text-blue-900 uppercase">Gerenciador Israel</h1>
           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Painel de Controle Tático</span>
