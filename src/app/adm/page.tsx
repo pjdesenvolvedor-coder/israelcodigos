@@ -280,6 +280,7 @@ export default function AdminPage() {
                     <div>
                       <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
                       <p className="text-[8px] font-black text-slate-400 uppercase">Criado em: {new Date(item.createdAt).toLocaleDateString()}</p>
+                      <p className="text-[8px] font-black text-red-500 uppercase mt-0.5">Expira em: {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : 'Não definido'}</p>
                     </div>
                     
                     <AlertDialog>
