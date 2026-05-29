@@ -20,6 +20,8 @@ import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase
 import { collection, query, orderBy, limit, doc, where, updateDoc } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 interface WebhookEntry {
   id: string;
@@ -108,6 +110,39 @@ export function WebhookDashboard() {
       });
   }, [rawData, now, sessionStart]);
 
+  // EFEITO CRÍTICO: Consumo automático de cota ao receber sinal
+  useEffect(() => {
+    if (!db || !accessDocId || !activeHistory.length) return;
+
+    // Filtra sinais que acabaram de chegar e ainda não foram contabilizados
+    const signalsToCount = activeHistory.filter(s => !usedTodayIds.includes(s.id));
+    if (signalsToCount.length === 0) return;
+
+    // Verifica quanto espaço resta na cota diária
+    const remaining = dailyLimit - usedTodayIds.length;
+    if (remaining <= 0) return;
+
+    // Pega apenas o que cabe na cota
+    const signalsToAdd = signalsToCount.slice(0, remaining).map(s => s.id);
+    const today = new Date().toLocaleDateString();
+    const isNewDay = accessDocData?.lastUsageDate !== today;
+    
+    const newConsumedSignals = isNewDay ? signalsToAdd : [...usedTodayIds, ...signalsToAdd];
+
+    // Atualiza no Firestore para que todos os dispositivos vejam o consumo
+    updateDoc(doc(db, "access_codes", accessDocId), {
+      consumedSignals: newConsumedSignals,
+      lastUsageDate: today
+    }).catch(async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: `access_codes/${accessDocId}`,
+        operation: 'update',
+        requestResourceData: { consumedSignals: newConsumedSignals, lastUsageDate: today }
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+  }, [activeHistory, usedTodayIds, db, accessDocId, dailyLimit, accessDocData?.lastUsageDate]);
+
   const usedCount = usedTodayIds.length;
   const progressValue = (usedCount / dailyLimit) * 100;
   const latestEntry = activeHistory[0];
@@ -115,38 +150,19 @@ export function WebhookDashboard() {
   const handleCopy = (entry: WebhookEntry) => {
     if (!db || !accessDocId) return;
 
-    // Se já foi usado, apenas copia
-    if (usedTodayIds.includes(entry.id)) {
-      navigator.clipboard.writeText(entry.payload.Conteudo || "");
-      toast({ title: "CÓDIGO COPIADO" });
-      return;
-    }
-
-    // Se atingiu o limite, bloqueia
-    if (usedCount >= dailyLimit) {
+    // Se o sinal não foi contabilizado (provavelmente por limite atingido), bloqueia a cópia
+    if (!usedTodayIds.includes(entry.id)) {
       toast({
         variant: "destructive",
-        title: "LIMITE DIÁRIO EXCEDIDO",
-        description: `Você já consumiu seus ${dailyLimit} sinais diários permitidos.`
+        title: "SINAL BLOQUEADO",
+        description: `Limite diário de ${dailyLimit} atingido.`
       });
       return;
     }
 
-    const today = new Date().toLocaleDateString();
-    const isNewDay = accessDocData?.lastUsageDate !== today;
-    
-    // Atualiza no Firestore para sincronizar com outros dispositivos
-    const newConsumedSignals = isNewDay ? [entry.id] : [...usedTodayIds, entry.id];
-    
-    updateDoc(doc(db, "access_codes", accessDocId), {
-      consumedSignals: newConsumedSignals,
-      lastUsageDate: today
-    });
-    
     navigator.clipboard.writeText(entry.payload.Conteudo || "");
     toast({ 
       title: "CÓDIGO COPIADO", 
-      description: `Sinais de hoje: ${newConsumedSignals.length}/${dailyLimit}`,
       className: "bg-blue-600 border-none text-white font-black rounded-2xl"
     });
   };
@@ -189,7 +205,7 @@ export function WebhookDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className={cn("w-3 h-3", usedCount >= dailyLimit ? "text-red-500" : "text-blue-500")} />
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">Cota de Uso Diário</span>
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">Consumo Tático (Auto-Contagem)</span>
             </div>
             <span className="text-[10px] font-mono font-black text-blue-600">
               {usedCount} <span className="text-slate-300">/</span> {dailyLimit}
@@ -208,8 +224,8 @@ export function WebhookDashboard() {
           
           <p className="text-[8px] font-bold text-slate-400 uppercase text-center tracking-widest">
             {usedCount >= dailyLimit 
-              ? "Limite atingido! Novos sinais bloqueados." 
-              : `Você ainda pode visualizar ${dailyLimit - usedCount} sinais hoje.`}
+              ? "Cota esgotada! Novos sinais bloqueados automaticamente." 
+              : "Cada novo sinal recebido consome 1 ponto da cota."}
           </p>
         </div>
 
@@ -223,7 +239,7 @@ export function WebhookDashboard() {
                     <Zap className="w-12 h-12 text-blue-600 absolute inset-0 animate-bounce" />
                   </div>
                   <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest leading-relaxed px-10">
-                    Sincronizando com a rede...<br/>Aguardando novo sinal.
+                    Aguardando sinal...<br/>Contagem automática ativa.
                   </p>
                 </div>
               ) : (
@@ -234,12 +250,13 @@ export function WebhookDashboard() {
                       <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Live Signal</span>
                     </div>
                     
-                    {usedCount >= dailyLimit && !usedTodayIds.includes(latestEntry.id) ? (
-                      <div className="flex flex-col items-center gap-3 py-4">
+                    {!usedTodayIds.includes(latestEntry.id) ? (
+                      <div className="flex flex-col items-center gap-3 py-4 px-6 text-center">
                         <div className="bg-red-50 p-4 rounded-full">
                           <Lock className="w-8 h-8 text-red-500" />
                         </div>
-                        <span className="text-sm font-black text-red-600 uppercase tracking-widest">LIMITE EXCEDIDO</span>
+                        <span className="text-sm font-black text-red-600 uppercase tracking-widest">SINAL BLOQUEADO</span>
+                        <p className="text-[10px] font-bold text-red-400 uppercase">Cota Diária Excedida</p>
                       </div>
                     ) : (
                       <span className="text-7xl font-black font-mono tracking-tighter text-blue-900 drop-shadow-sm">
@@ -248,12 +265,12 @@ export function WebhookDashboard() {
                     )}
                   </div>
 
-                  {latestEntry.interpretation && (
+                  {latestEntry.interpretation && usedTodayIds.includes(latestEntry.id) && (
                     <div className="bg-slate-900 rounded-[25px] p-5 space-y-3 shadow-xl">
                       <button onClick={() => setShowAI(!showAI)} className="w-full flex items-center justify-between text-blue-400">
                         <div className="flex items-center gap-2">
                           <BrainCircuit className="w-4 h-4" />
-                          <span className="text-[10px] font-black uppercase tracking-tighter">Inteligência Artificial Israel</span>
+                          <span className="text-[10px] font-black uppercase tracking-tighter">Análise IA Israel</span>
                         </div>
                         {showAI ? <ChevronUp className="w-4 h-4 opacity-50" /> : <ChevronDown className="w-4 h-4 opacity-50" />}
                       </button>
@@ -263,15 +280,16 @@ export function WebhookDashboard() {
 
                   <Button 
                     onClick={() => handleCopy(latestEntry)}
+                    disabled={!usedTodayIds.includes(latestEntry.id)}
                     className={cn(
                       "w-full font-black h-18 rounded-[24px] text-lg transition-all active:scale-95",
-                      usedCount >= dailyLimit && !usedTodayIds.includes(latestEntry.id)
+                      !usedTodayIds.includes(latestEntry.id)
                         ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-100"
                     )}
                   >
                     <Copy className="w-5 h-5 mr-3" />
-                    {usedCount >= dailyLimit && !usedTodayIds.includes(latestEntry.id) ? "BLOQUEADO" : "COPIAR SINAL"}
+                    {!usedTodayIds.includes(latestEntry.id) ? "BLOQUEADO" : "COPIAR SINAL"}
                   </Button>
                 </>
               )}
@@ -282,7 +300,7 @@ export function WebhookDashboard() {
         {activeHistory.length > 1 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-3">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Histórico Recente</h3>
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Histórico da Sessão</h3>
               <div className="h-px bg-slate-100 flex-1 ml-4" />
             </div>
             
@@ -295,7 +313,7 @@ export function WebhookDashboard() {
                 >
                   <div className="flex flex-col">
                     <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">{entry.payload.Produto || "Sinal Tático"}</span>
-                    {usedCount >= dailyLimit && !usedTodayIds.includes(entry.id) ? (
+                    {!usedTodayIds.includes(entry.id) ? (
                       <div className="flex items-center gap-2">
                         <Lock className="w-3 h-3 text-red-300" />
                         <span className="text-sm font-black text-red-300 uppercase">BLOQUEADO</span>
