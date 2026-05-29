@@ -42,7 +42,6 @@ export default function AdminPage() {
 
   const { data: codes = [] } = useCollection<AccessCode>(codesQuery);
 
-  // Carrega configurações salvas ao logar
   useEffect(() => {
     if (isLogged && db) {
       const loadSettings = async () => {
@@ -72,17 +71,24 @@ export default function AdminPage() {
   const handleSaveSettings = async () => {
     if (!db) return;
     setSavingSettings(true);
-    try {
-      await setDoc(doc(db, "_system", "config"), {
-        defaultDailyLimit: parseInt(dailyLimitInput) || 10,
-        updatedAt: new Date().toISOString()
-      });
-      toast({ title: "CONFIGURAÇÃO SALVA", className: "bg-green-600 text-white rounded-2xl" });
-    } catch (error) {
-      toast({ variant: "destructive", title: "ERRO AO SALVAR" });
-    } finally {
-      setSavingSettings(false);
-    }
+    const configData = {
+      defaultDailyLimit: parseInt(dailyLimitInput) || 10,
+      updatedAt: new Date().toISOString()
+    };
+    
+    setDoc(doc(db, "_system", "config"), configData)
+      .then(() => {
+        toast({ title: "CONFIGURAÇÃO SALVA", className: "bg-green-600 text-white rounded-2xl" });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: '_system/config',
+          operation: 'update',
+          requestResourceData: configData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => setSavingSettings(false));
   };
 
   const generateCode = () => {
@@ -99,6 +105,9 @@ export default function AdminPage() {
     };
 
     addDoc(collection(db, "access_codes"), data)
+      .then(() => {
+        toast({ title: "CÓDIGO GERADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
+      })
       .catch(async (err) => {
         const permissionError = new FirestorePermissionError({
           path: 'access_codes',
@@ -108,27 +117,48 @@ export default function AdminPage() {
         errorEmitter.emit('permission-error', permissionError);
       })
       .finally(() => setLoading(false));
-
-    toast({ title: "CÓDIGO GERADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
   };
 
-  const deleteIndividualCode = async (id: string) => {
-    if (!db || !confirm("Deseja apagar este código?")) return;
-    try {
-      await deleteDoc(doc(db, "access_codes", id));
-      toast({ title: "APAGADO COM SUCESSO" });
-    } catch (error) {
-      toast({ variant: "destructive", title: "ERRO AO APAGAR" });
-    }
+  const deleteIndividualCode = (id: string) => {
+    if (!db) return;
+    if (!window.confirm("Deseja realmente apagar este código de acesso?")) return;
+
+    const docRef = doc(db, "access_codes", id);
+    deleteDoc(docRef)
+      .then(() => {
+        toast({ title: "CÓDIGO APAGADO", className: "bg-slate-900 text-white rounded-2xl" });
+      })
+      .catch(async (err) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete'
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
 
   const clearAll = async () => {
-    if (!db || !confirm("Limpar todo o histórico de códigos?")) return;
-    const snapshot = await getDocs(collection(db, "access_codes"));
-    const batch = writeBatch(db);
-    snapshot.docs.forEach((d) => batch.delete(d.ref));
-    await batch.commit();
-    toast({ title: "LIMPEZA CONCLUÍDA" });
+    if (!db || !window.confirm("ATENÇÃO: Limpar todo o histórico de códigos permanentemente?")) return;
+    
+    try {
+      const snapshot = await getDocs(collection(db, "access_codes"));
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((d) => batch.delete(d.ref));
+      
+      batch.commit()
+        .then(() => {
+          toast({ title: "LIMPEZA CONCLUÍDA", className: "bg-red-600 text-white rounded-2xl" });
+        })
+        .catch(async (err) => {
+          const permissionError = new FirestorePermissionError({
+            path: 'access_codes',
+            operation: 'delete'
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
+    } catch (error) {
+      toast({ variant: "destructive", title: "ERRO AO CARREGAR DADOS" });
+    }
   };
 
   const copyCode = (c: string) => {
