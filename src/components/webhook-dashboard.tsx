@@ -16,8 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestore, useCollection, useDoc } from "@/firebase";
-import { collection, query, orderBy, limit, doc } from "firebase/firestore";
+import { useFirestore, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { collection, query, orderBy, limit, doc, where, updateDoc } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +44,18 @@ export function WebhookDashboard() {
   const [accessExpiresAt, setAccessExpiresAt] = useState<string | null>(null);
   const [sessionStart, setSessionStart] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
-  const [usedTodayIds, setUsedTodayIds] = useState<string[]>([]);
+  
+  const accessToken = typeof window !== 'undefined' ? localStorage.getItem("israel_access_token") : null;
+
+  // Busca o documento do código de acesso atual para sincronizar o uso entre dispositivos
+  const accessCodeQuery = useMemoFirebase(() => {
+    if (!db || !accessToken) return null;
+    return query(collection(db, "access_codes"), where("code", "==", accessToken.toUpperCase()));
+  }, [db, accessToken]);
+
+  const { data: accessDocs = [] } = useCollection<any>(accessCodeQuery);
+  const accessDocData = accessDocs?.[0];
+  const accessDocId = accessDocData?.id;
 
   // Escuta o limite global do banco de dados em tempo real
   const configDocRef = useMemo(() => (db ? doc(db, "_system", "config") : null), [db]);
@@ -55,21 +66,21 @@ export function WebhookDashboard() {
     setAccessExpiresAt(localStorage.getItem("israel_access_expires"));
     setSessionStart(localStorage.getItem("israel_session_start"));
     
-    // Recupera IDs de sinais já "consumidos" hoje
-    const today = new Date().toLocaleDateString();
-    const storedDay = localStorage.getItem("israel_usage_day");
-    if (storedDay !== today) {
-      localStorage.setItem("israel_usage_day", today);
-      localStorage.setItem("israel_usage_ids", JSON.stringify([]));
-      setUsedTodayIds([]);
-    } else {
-      const storedIds = localStorage.getItem("israel_usage_ids");
-      if (storedIds) setUsedTodayIds(JSON.parse(storedIds));
-    }
-
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Lógica de consumo diário sincronizado
+  const usedTodayIds = useMemo(() => {
+    if (!accessDocData) return [];
+    const today = new Date().toLocaleDateString();
+    
+    // Se a data do último uso no banco for diferente de hoje, o contador é zero
+    if (accessDocData.lastUsageDate !== today) {
+      return [];
+    }
+    return accessDocData.consumedSignals || [];
+  }, [accessDocData]);
 
   const webhooksQuery = useMemo(() => {
     if (!db) return null;
@@ -102,12 +113,16 @@ export function WebhookDashboard() {
   const latestEntry = activeHistory[0];
 
   const handleCopy = (entry: WebhookEntry) => {
+    if (!db || !accessDocId) return;
+
+    // Se já foi usado, apenas copia
     if (usedTodayIds.includes(entry.id)) {
       navigator.clipboard.writeText(entry.payload.Conteudo || "");
       toast({ title: "CÓDIGO COPIADO" });
       return;
     }
 
+    // Se atingiu o limite, bloqueia
     if (usedCount >= dailyLimit) {
       toast({
         variant: "destructive",
@@ -117,14 +132,21 @@ export function WebhookDashboard() {
       return;
     }
 
-    const newIds = [...usedTodayIds, entry.id];
-    setUsedTodayIds(newIds);
-    localStorage.setItem("israel_usage_ids", JSON.stringify(newIds));
+    const today = new Date().toLocaleDateString();
+    const isNewDay = accessDocData?.lastUsageDate !== today;
+    
+    // Atualiza no Firestore para sincronizar com outros dispositivos
+    const newConsumedSignals = isNewDay ? [entry.id] : [...usedTodayIds, entry.id];
+    
+    updateDoc(doc(db, "access_codes", accessDocId), {
+      consumedSignals: newConsumedSignals,
+      lastUsageDate: today
+    });
     
     navigator.clipboard.writeText(entry.payload.Conteudo || "");
     toast({ 
       title: "CÓDIGO COPIADO", 
-      description: `Sinais de hoje: ${newIds.length}/${dailyLimit}`,
+      description: `Sinais de hoje: ${newConsumedSignals.length}/${dailyLimit}`,
       className: "bg-blue-600 border-none text-white font-black rounded-2xl"
     });
   };
