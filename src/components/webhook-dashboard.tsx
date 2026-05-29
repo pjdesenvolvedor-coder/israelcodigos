@@ -291,10 +291,6 @@ export function WebhookDashboard() {
           </div>
         )}
       </main>
-
-      <footer className="p-4 bg-white/80 backdrop-blur-md border-t text-center shrink-0">
-        <p className="text-[7px] font-black text-slate-300 uppercase tracking-[0.6em]">Encryption Active • Tactical Mode</p>
-      </footer>
     </div>
   );
 }
