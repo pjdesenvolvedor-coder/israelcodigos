@@ -122,13 +122,13 @@ export default function AdminPage() {
   const deleteIndividualCode = (id: string) => {
     if (!db || !id) return;
     
-    const confirm = window.confirm("Deseja realmente apagar este código de acesso permanentemente?");
-    if (!confirm) return;
+    const isConfirmed = window.confirm("Deseja realmente apagar este código de acesso? O usuário perderá o acesso na hora.");
+    if (!isConfirmed) return;
 
     const docRef = doc(db, "access_codes", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "ACESSO APAGADO", className: "bg-slate-900 text-white rounded-2xl" });
+        toast({ title: "ACESSO REMOVIDO", className: "bg-slate-900 text-white rounded-2xl" });
       })
       .catch(async (err) => {
         const permissionError = new FirestorePermissionError({
@@ -139,16 +139,16 @@ export default function AdminPage() {
       });
   };
 
-  const clearAll = async () => {
+  const clearAllCodes = async () => {
     if (!db) return;
     
-    const confirm = window.confirm("ATENÇÃO: Deseja apagar TODOS os códigos (ativos e pendentes) agora?");
-    if (!confirm) return;
+    const isConfirmed = window.confirm("CUIDADO: Você vai apagar TODOS os códigos (ativos e pendentes). Todos os usuários serão desconectados. Continuar?");
+    if (!isConfirmed) return;
     
     try {
       const snapshot = await getDocs(collection(db, "access_codes"));
       if (snapshot.empty) {
-        toast({ title: "NADA PARA APAGAR" });
+        toast({ title: "NÃO HÁ CÓDIGOS PARA APAGAR" });
         return;
       }
 
@@ -167,7 +167,7 @@ export default function AdminPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
     } catch (error) {
-      toast({ variant: "destructive", title: "ERRO AO CARREGAR DADOS" });
+      toast({ variant: "destructive", title: "ERRO AO ACESSAR BANCO" });
     }
   };
 
@@ -219,7 +219,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
         <div className="space-y-4">
           <div className="space-y-3 bg-white p-5 rounded-[30px] border border-blue-50">
             <div className="flex items-center justify-between mb-1">
@@ -257,7 +257,7 @@ export default function AdminPage() {
             <TabsTrigger value="pending" className="rounded-xl font-black text-[10px] uppercase">Pendentes ({pendingCodes.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="space-y-3 pb-6">
+          <TabsContent value="users" className="space-y-3">
             {activeUsers.length === 0 ? (
               <div className="py-10 text-center">
                 <Users className="w-8 h-8 text-slate-200 mx-auto mb-2" />
@@ -272,9 +272,13 @@ export default function AdminPage() {
                       <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit} | Expira: {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : '---'}</p>
                     </div>
                     <div className="flex gap-2">
-                      <CheckCircle2 className="text-green-500 w-5 h-5" />
-                      <Button variant="ghost" size="icon" onClick={() => deleteIndividualCode(item.id)} className="text-slate-200 hover:text-red-500 h-8 w-8">
-                        <Trash2 className="w-4 h-4" />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => deleteIndividualCode(item.id)} 
+                        className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
+                      >
+                        <Trash2 className="w-5 h-5" />
                       </Button>
                     </div>
                   </CardContent>
@@ -283,7 +287,7 @@ export default function AdminPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="pending" className="space-y-3 pb-6">
+          <TabsContent value="pending" className="space-y-3">
             {pendingCodes.length === 0 ? (
               <div className="py-10 text-center">
                 <Clock className="w-8 h-8 text-slate-200 mx-auto mb-2" />
@@ -298,11 +302,21 @@ export default function AdminPage() {
                       <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit}</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => copyCode(item.code)} className="bg-slate-50 text-slate-400 rounded-xl h-9 w-9">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => copyCode(item.code)} 
+                        className="bg-slate-50 text-slate-400 rounded-xl h-10 w-10"
+                      >
                         <Copy className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteIndividualCode(item.id)} className="text-slate-200 hover:text-red-500 h-9 w-9">
-                        <Trash2 className="w-4 h-4" />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => deleteIndividualCode(item.id)} 
+                        className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
+                      >
+                        <Trash2 className="w-5 h-5" />
                       </Button>
                     </div>
                   </CardContent>
@@ -313,15 +327,16 @@ export default function AdminPage() {
         </Tabs>
 
         {codes.length > 0 && (
-          <div className="pt-4 pb-10">
+          <div className="pt-8 pb-12">
             <Button 
-              onClick={clearAll} 
+              onClick={clearAllCodes} 
               variant="outline"
-              className="w-full h-14 border-red-100 text-red-500 hover:bg-red-50 hover:text-red-600 font-black rounded-2xl flex items-center justify-center gap-2"
+              className="w-full h-16 border-red-100 text-red-500 hover:bg-red-500 hover:text-white font-black rounded-[25px] flex items-center justify-center gap-2 transition-all"
             >
-              <AlertTriangle className="w-4 h-4" />
+              <AlertTriangle className="w-5 h-5" />
               APAGAR TODOS OS CÓDIGOS
             </Button>
+            <p className="text-[8px] text-center font-bold text-slate-400 uppercase mt-4 tracking-widest">Ação irreversível: desconecta todos os usuários</p>
           </div>
         )}
       </main>
