@@ -1,14 +1,14 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { ShieldCheck, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore } from "@/firebase";
-import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, updateDoc, doc, onSnapshot } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
@@ -23,27 +23,51 @@ export function AccessGuard({ children }: AccessGuardProps) {
   const { toast } = useToast();
   const db = useFirestore();
 
+  // Monitor de segurança em tempo real para desconexão automática
   useEffect(() => {
-    const checkAccess = async () => {
-      const savedCode = localStorage.getItem("israel_access_token");
-      const expiresAt = localStorage.getItem("israel_access_expires");
+    const savedCode = typeof window !== 'undefined' ? localStorage.getItem("israel_access_token") : null;
+    
+    if (!savedCode || !db) {
+      if (isAuthorized === null) setIsAuthorized(false);
+      return;
+    }
 
-      if (savedCode && expiresAt) {
-        if (new Date() > new Date(expiresAt)) {
+    // Cria um listener para o código de acesso atual
+    const q = query(collection(db, "access_codes"), where("code", "==", savedCode.toUpperCase()));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      // Se o código for deletado ou não existir mais, desconecta na hora
+      if (snapshot.empty) {
+        if (isAuthorized === true) {
           localStorage.removeItem("israel_access_token");
           localStorage.removeItem("israel_access_expires");
           localStorage.removeItem("israel_session_start");
           localStorage.removeItem("israel_daily_limit");
           setIsAuthorized(false);
+          toast({
+            variant: "destructive",
+            title: "ACESSO REMOVIDO",
+            description: "Este código foi desativado pelo administrador."
+          });
+        } else {
+          setIsAuthorized(false);
+        }
+      } else {
+        // Verifica expiração
+        const data = snapshot.docs[0].data();
+        if (data.expiresAt && new Date() > new Date(data.expiresAt)) {
+          localStorage.removeItem("israel_access_token");
+          setIsAuthorized(false);
         } else {
           setIsAuthorized(true);
         }
-      } else {
-        setIsAuthorized(false);
       }
-    };
-    checkAccess();
-  }, []);
+    }, (error) => {
+      console.error("Erro no monitor de acesso:", error);
+    });
+
+    return () => unsubscribe();
+  }, [db, isAuthorized, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +87,6 @@ export function AccessGuard({ children }: AccessGuardProps) {
       const docSnap = snapshot.docs[0];
       const data = docSnap.data();
 
-      // Grava o horário da sessão (apenas sinais após este horário serão mostrados)
       const sessionStart = new Date().toISOString();
       const dailyLimit = data.dailyLimit || 50;
 
@@ -88,15 +111,7 @@ export function AccessGuard({ children }: AccessGuardProps) {
           expiresAt: expiresAtStr
         };
 
-        updateDoc(doc(db, "access_codes", docSnap.id), updateData)
-          .catch(async (err) => {
-            const permissionError = new FirestorePermissionError({
-              path: `access_codes/${docSnap.id}`,
-              operation: 'update',
-              requestResourceData: updateData
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          });
+        await updateDoc(doc(db, "access_codes", docSnap.id), updateData);
 
         localStorage.setItem("israel_access_token", code.toUpperCase());
         localStorage.setItem("israel_access_expires", expiresAtStr);
