@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Settings, Plus, Copy, Trash2, Loader2, Users, Clock, Hash, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Settings, Plus, Copy, Trash2, Loader2, Users, Clock, Hash, AlertTriangle, ShieldCheck, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,6 +32,8 @@ interface AccessCode {
   usedAt: string | null;
   expiresAt: string | null;
   dailyLimit: number;
+  consumedSignals?: string[];
+  lastUsageDate?: string;
 }
 
 const ADMIN_PASSWORD = "Ae@1234Br";
@@ -114,7 +116,9 @@ export default function AdminPage() {
       createdAt: new Date().toISOString(),
       usedAt: null,
       expiresAt: null,
-      dailyLimit: parseInt(dailyLimitInput) || 10
+      dailyLimit: parseInt(dailyLimitInput) || 10,
+      consumedSignals: [],
+      lastUsageDate: new Date().toLocaleDateString()
     };
 
     addDoc(collection(db, "access_codes"), data)
@@ -189,6 +193,8 @@ export default function AdminPage() {
 
   const activeUsers = useMemo(() => (codes || []).filter(c => c.usedAt !== null), [codes]);
   const pendingCodes = useMemo(() => (codes || []).filter(c => c.usedAt === null), [codes]);
+
+  const globalLimit = parseInt(dailyLimitInput) || 10;
 
   if (!isLogged) {
     return (
@@ -274,46 +280,62 @@ export default function AdminPage() {
                 <p className="text-[10px] font-black text-slate-300 uppercase">Nenhum usuário ativo</p>
               </div>
             ) : (
-              activeUsers.map(item => (
-                <Card key={item.id} className="bg-white border-l-4 border-l-green-500 rounded-2xl shadow-sm overflow-hidden">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
-                      <p className="text-[8px] font-black text-slate-400 uppercase">Criado em: {new Date(item.createdAt).toLocaleDateString()}</p>
-                      <p className="text-[8px] font-black text-red-500 uppercase mt-0.5">Expira em: {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : 'Não definido'}</p>
-                    </div>
-                    
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="rounded-[30px]">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="font-black uppercase text-blue-900">APAGAR USUÁRIO?</AlertDialogTitle>
-                          <AlertDialogDescription className="font-bold text-slate-400">
-                            O usuário será desconectado imediatamente do sistema.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel className="rounded-xl font-black">CANCELAR</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => deleteIndividualCode(item.id)}
-                            className="bg-red-600 rounded-xl font-black"
+              activeUsers.map(item => {
+                const today = new Date().toLocaleDateString();
+                const usage = item.lastUsageDate === today ? (item.consumedSignals?.length || 0) : 0;
+                const isLimitReached = usage >= globalLimit;
+
+                return (
+                  <Card key={item.id} className="bg-white border-l-4 border-l-green-500 rounded-2xl shadow-sm overflow-hidden">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
+                        <p className="text-[8px] font-black text-slate-400 uppercase">Criado em: {new Date(item.createdAt).toLocaleDateString()}</p>
+                        <p className="text-[8px] font-black text-red-500 uppercase mt-0.5">Expira em: {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : 'Não definido'}</p>
+                      </div>
+
+                      <div className="flex flex-col items-end mr-4">
+                        <div className="flex items-center gap-1 mb-1">
+                          <Activity className={cn("w-3 h-3", isLimitReached ? "text-red-500" : "text-blue-500")} />
+                          <span className="text-[8px] font-black text-slate-400 uppercase">Uso Hoje</span>
+                        </div>
+                        <p className={cn("text-lg font-black font-mono", isLimitReached ? "text-red-600" : "text-blue-700")}>
+                          {usage} <span className="text-slate-200 text-xs">/ {globalLimit}</span>
+                        </p>
+                      </div>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
                           >
-                            CONFIRMAR
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </CardContent>
-                </Card>
-              ))
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-[30px]">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="font-black uppercase text-blue-900">APAGAR USUÁRIO?</AlertDialogTitle>
+                            <AlertDialogDescription className="font-bold text-slate-400">
+                              O usuário será desconectado imediatamente do sistema.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-xl font-black">CANCELAR</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteIndividualCode(item.id)}
+                              className="bg-red-600 rounded-xl font-black"
+                            >
+                              CONFIRMAR
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardContent>
+                  </Card>
+                );
+              })
             )}
           </TabsContent>
 
