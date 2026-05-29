@@ -147,7 +147,7 @@ export function AccessGuard({ children }: AccessGuardProps) {
           </div>
           <h1 className="text-3xl font-black text-blue-900 tracking-tighter uppercase">ÁREA PROTEGIDA</h1>
           <p className="text-slate-400 text-sm font-bold uppercase tracking-widest px-8 leading-relaxed">
-            Insira seu código de acesso para entrar no monitoramento tático.
+            MONITORAMENTO DE CODIGOS
           </p>
         </div>
 
