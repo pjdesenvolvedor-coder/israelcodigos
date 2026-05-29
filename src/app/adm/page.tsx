@@ -2,14 +2,14 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, LogOut, Send, Wifi, WifiOff, Hash } from "lucide-react";
+import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, Wifi, WifiOff, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFirestore, useCollection } from "@/firebase";
-import { collection, addDoc, deleteDoc, doc, query, orderBy, writeBatch, getDocs, setDoc } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, writeBatch, getDocs, doc, setDoc } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,7 @@ export default function AdminPage() {
   const [isLogged, setIsLogged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'error'>('checking');
-  const [dailyLimitInput, setDailyLimitInput] = useState("50");
+  const [dailyLimitInput, setDailyLimitInput] = useState("10");
   const { toast } = useToast();
   const db = useFirestore();
 
@@ -65,34 +65,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogout = () => {
-    setIsLogged(false);
-    setPassInput("");
-  };
-
-  const sendTestSignal = async () => {
-    if (!db) return;
-    setLoading(true);
-    try {
-      const timestamp = new Date().toISOString();
-      await addDoc(collection(db, "webhooks"), {
-        timestamp: timestamp,
-        createdAt: timestamp,
-        method: "TEST",
-        payload: {
-          Produto: "SINAL TÁTICO ISRAEL",
-          Assunto: "TESTE DE CONEXÃO DIRETA",
-          Conteudo: Math.floor(1000 + Math.random() * 9000).toString()
-        }
-      });
-      toast({ title: "SINAL DE TESTE ENVIADO", className: "bg-green-600 text-white font-black rounded-2xl" });
-    } catch (err) {
-      toast({ variant: "destructive", title: "ERRO AO ENVIAR" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const generateCode = () => {
     if (!db) return;
     setLoading(true);
@@ -103,7 +75,7 @@ export default function AdminPage() {
       createdAt: new Date().toISOString(),
       usedAt: null,
       expiresAt: null,
-      dailyLimit: parseInt(dailyLimitInput) || 50
+      dailyLimit: parseInt(dailyLimitInput) || 10
     };
 
     addDoc(collection(db, "access_codes"), data)
@@ -121,26 +93,17 @@ export default function AdminPage() {
   };
 
   const clearAll = async () => {
-    if (!db || !confirm("Tem certeza que deseja apagar todos os registros?")) return;
-    
+    if (!db || !confirm("Limpar todo o histórico de códigos?")) return;
     const snapshot = await getDocs(collection(db, "access_codes"));
     const batch = writeBatch(db);
     snapshot.docs.forEach((d) => batch.delete(d.ref));
-    
-    batch.commit().catch(async (err) => {
-      const permissionError = new FirestorePermissionError({
-        path: 'access_codes',
-        operation: 'delete'
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    }).then(() => {
-      toast({ title: "LIMPEZA CONCLUÍDA", className: "bg-blue-600 text-white font-black rounded-2xl" });
-    });
+    batch.commit();
+    toast({ title: "LIMPEZA CONCLUÍDA" });
   };
 
   const copyCode = (c: string) => {
     navigator.clipboard.writeText(c);
-    toast({ title: "COPIADO", className: "bg-blue-600 text-white font-black rounded-2xl" });
+    toast({ title: "COPIADO" });
   };
 
   const activeUsers = useMemo(() => (codes || []).filter(c => c.usedAt !== null), [codes]);
@@ -152,24 +115,19 @@ export default function AdminPage() {
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <Settings className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Painel de Controle</h1>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Administração Receptor Israel</p>
+            <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Admin Receptor</h1>
           </div>
-          <Card className="bg-slate-800 border-slate-700 rounded-[30px] shadow-2xl">
+          <Card className="bg-slate-800 border-slate-700 rounded-[30px]">
             <CardContent className="p-8">
               <form onSubmit={handleLogin} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-2">Senha Mestra</label>
-                  <Input 
-                    type="password" 
-                    value={passInput}
-                    onChange={(e) => setPassInput(e.target.value)}
-                    className="h-14 bg-slate-900 border-slate-700 text-white font-bold rounded-2xl"
-                  />
-                </div>
-                <Button className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl">
-                  ACESSAR PAINEL
-                </Button>
+                <Input 
+                  type="password" 
+                  placeholder="SENHA MESTRA"
+                  value={passInput}
+                  onChange={(e) => setPassInput(e.target.value)}
+                  className="h-14 bg-slate-900 border-slate-700 text-white font-bold rounded-2xl"
+                />
+                <Button className="w-full h-14 bg-blue-600 font-black rounded-2xl">ENTRAR</Button>
               </form>
             </CardContent>
           </Card>
@@ -180,152 +138,73 @@ export default function AdminPage() {
 
   return (
     <div className="h-screen bg-slate-50 max-w-md mx-auto flex flex-col overflow-hidden">
-      <header className="p-6 bg-white border-b flex items-center justify-between shrink-0 z-50">
-        <div className="flex items-center gap-3">
-          <Settings className="w-6 h-6 text-blue-600" />
-          <h1 className="font-black text-blue-900 uppercase tracking-tighter">Gerenciador Israel</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="destructive" 
-            size="sm" 
-            onClick={handleLogout}
-            className="bg-red-500 hover:bg-red-600 text-white font-black rounded-xl text-[10px] h-8 px-4 uppercase tracking-widest shadow-lg shadow-red-100"
-          >
-            SAIR
-          </Button>
-          <Button variant="ghost" size="icon" onClick={clearAll} className="text-slate-300 hover:text-red-500">
-            <Trash2 className="w-5 h-5" />
-          </Button>
-        </div>
+      <header className="p-6 bg-white border-b flex items-center justify-between shrink-0">
+        <h1 className="font-black text-blue-900 uppercase">Gerenciador Israel</h1>
+        <Button variant="ghost" size="icon" onClick={clearAll} className="text-slate-300 hover:text-red-500">
+          <Trash2 className="w-5 h-5" />
+        </Button>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
-        
-        <div className={cn(
-          "p-4 rounded-2xl flex items-center justify-between",
-          dbStatus === 'online' ? "bg-green-50 border border-green-100" : 
-          dbStatus === 'error' ? "bg-red-50 border border-red-100" : "bg-slate-50 border border-slate-100"
-        )}>
-          <div className="flex items-center gap-3">
-            {dbStatus === 'online' ? <Wifi className="w-5 h-5 text-green-600" /> : 
-             dbStatus === 'error' ? <WifiOff className="w-5 h-5 text-red-600" /> : 
-             <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />}
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status do Banco</p>
-              <p className={cn("text-xs font-black uppercase", 
-                dbStatus === 'online' ? "text-green-600" : 
-                dbStatus === 'error' ? "text-red-600" : "text-slate-400")}>
-                {dbStatus === 'online' ? "SISTEMA ONLINE" : 
-                 dbStatus === 'error' ? "ERRO NAS REGRAS" : "VERIFICANDO..."}
-              </p>
-            </div>
-          </div>
-          {dbStatus === 'online' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className={cn("p-4 rounded-2xl flex items-center gap-3", dbStatus === 'online' ? "bg-green-50" : "bg-red-50")}>
+          {dbStatus === 'online' ? <Wifi className="text-green-600" /> : <WifiOff className="text-red-600" />}
+          <span className="text-[10px] font-black uppercase tracking-widest">Status: {dbStatus === 'online' ? "ONLINE" : "ERRO"}</span>
         </div>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-2">Limite de Sinais por Dia</label>
+            <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-2">Sinais por dia p/ usuário</label>
             <div className="relative">
               <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" />
               <Input 
                 type="number" 
                 value={dailyLimitInput}
                 onChange={(e) => setDailyLimitInput(e.target.value)}
-                placeholder="Ex: 50"
-                className="h-12 pl-12 bg-white border-blue-100 font-bold rounded-2xl text-blue-900"
+                className="h-12 pl-12 bg-white border-blue-100 font-black rounded-2xl"
               />
             </div>
           </div>
           
-          <Button 
-            onClick={generateCode}
-            disabled={loading || dbStatus !== 'online'}
-            className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100 flex items-center justify-center gap-3 shrink-0"
-          >
-            {loading ? <Loader2 className="animate-spin" /> : <Plus className="w-6 h-6" />}
+          <Button onClick={generateCode} disabled={loading} className="w-full h-20 bg-blue-600 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100">
+            {loading ? <Loader2 className="animate-spin" /> : <Plus className="w-6 h-6 mr-2" />}
             GERAR NOVO ACESSO
-          </Button>
-
-          <Button 
-            onClick={sendTestSignal}
-            disabled={loading || dbStatus !== 'online'}
-            variant="outline"
-            className="w-full h-14 border-2 border-dashed border-blue-200 text-blue-600 font-black rounded-2xl hover:bg-blue-50 flex items-center justify-center gap-2"
-          >
-            <Send className="w-4 h-4" />
-            ENVIAR SINAL DE TESTE
           </Button>
         </div>
 
-        <Tabs defaultValue="users" className="w-full">
-          <TabsList className="w-full grid grid-cols-2 h-14 bg-white border-blue-50 rounded-2xl shadow-sm p-1">
-            <TabsTrigger value="users" className="rounded-xl font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              Usuários ({activeUsers.length})
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="rounded-xl font-black text-[10px] uppercase tracking-widest data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-              Pendentes ({pendingCodes.length})
-            </TabsTrigger>
+        <Tabs defaultValue="users">
+          <TabsList className="w-full grid grid-cols-2 h-12 bg-white rounded-2xl p-1 mb-6">
+            <TabsTrigger value="users" className="rounded-xl font-black text-[10px] uppercase">Usuários ({activeUsers.length})</TabsTrigger>
+            <TabsTrigger value="pending" className="rounded-xl font-black text-[10px] uppercase">Pendentes ({pendingCodes.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="mt-6 space-y-4 outline-none">
-            <div className="space-y-3">
-              {activeUsers.length === 0 ? (
-                <div className="py-20 text-center space-y-3">
-                  <Users className="w-10 h-10 text-slate-200 mx-auto" />
-                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum usuário ativo</p>
-                </div>
-              ) : (
-                activeUsers.map((item) => (
-                  <Card key={item.id} className="bg-white border-green-50 rounded-[25px] shadow-sm overflow-hidden border-l-4 border-l-green-500">
-                    <CardContent className="p-5 flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-3 h-3 text-green-500" />
-                          <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
-                        </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit} sinais/dia</span>
-                          <span className="text-[8px] font-black text-blue-500 uppercase">Expira em: {new Date(item.expiresAt!).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                      <div className="bg-green-50 px-3 py-1.5 rounded-full">
-                        <span className="text-[8px] font-black text-green-600 uppercase">ATIVO</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+          <TabsContent value="users" className="space-y-3">
+            {activeUsers.map(item => (
+              <Card key={item.id} className="bg-white border-l-4 border-l-green-500 rounded-2xl">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
+                    <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit} | Expira: {new Date(item.expiresAt!).toLocaleDateString()}</p>
+                  </div>
+                  <CheckCircle2 className="text-green-500 w-5 h-5" />
+                </CardContent>
+              </Card>
+            ))}
           </TabsContent>
 
-          <TabsContent value="pending" className="mt-6 space-y-4 outline-none">
-            <div className="space-y-3">
-              {pendingCodes.length === 0 ? (
-                <div className="py-20 text-center space-y-3">
-                  <ShieldAlert className="w-10 h-10 text-slate-200 mx-auto" />
-                  <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Nenhum código pendente</p>
-                </div>
-              ) : (
-                pendingCodes.map((item) => (
-                  <Card key={item.id} className="bg-white border-blue-50 rounded-[25px] shadow-sm hover:shadow-md transition-all overflow-hidden border-l-4 border-l-blue-200">
-                    <CardContent className="p-5 flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-3 h-3 text-blue-300" />
-                          <span className="text-xl font-mono font-black text-blue-900">{item.code}</span>
-                        </div>
-                        <span className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit} | Criado: {new Date(item.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => copyCode(item.code)} className="bg-slate-50 text-slate-400 rounded-xl hover:text-blue-600">
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+          <TabsContent value="pending" className="space-y-3">
+            {pendingCodes.map(item => (
+              <Card key={item.id} className="bg-white border-l-4 border-l-blue-200 rounded-2xl">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
+                    <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => copyCode(item.code)} className="bg-slate-50 text-slate-400 rounded-xl">
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </TabsContent>
         </Tabs>
       </main>

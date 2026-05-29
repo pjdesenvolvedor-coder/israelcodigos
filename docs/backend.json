@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Webhook": {
@@ -8,7 +9,8 @@
         "timestamp": { "type": "string", "description": "ISO timestamp do recebimento" },
         "payload": { "type": "object", "description": "Dados brutos do sinal" },
         "createdAt": { "type": "string", "description": "Data de criação para ordenação" },
-        "method": { "type": "string" }
+        "method": { "type": "string" },
+        "interpretation": { "type": "object" }
       },
       "required": ["timestamp", "payload", "createdAt"]
     },
@@ -20,7 +22,8 @@
         "code": { "type": "string" },
         "createdAt": { "type": "string" },
         "usedAt": { "type": "string" },
-        "expiresAt": { "type": "string" }
+        "expiresAt": { "type": "string" },
+        "dailyLimit": { "type": "number", "description": "Limite de sinais que o usuário pode ver por dia" }
       },
       "required": ["code", "createdAt"]
     }
