@@ -13,6 +13,17 @@ import { collection, addDoc, query, orderBy, writeBatch, getDocs, doc, setDoc, g
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface AccessCode {
   id: string;
@@ -123,9 +134,6 @@ export default function AdminPage() {
   const deleteIndividualCode = (id: string) => {
     if (!db || !id) return;
     
-    const confirmation = window.confirm("Deseja APAGAR este acesso? O usuário será desconectado imediatamente.");
-    if (!confirmation) return;
-
     const docRef = doc(db, "access_codes", id);
     deleteDoc(docRef)
       .then(() => {
@@ -142,9 +150,6 @@ export default function AdminPage() {
 
   const clearAllCodes = async () => {
     if (!db) return;
-    
-    const confirmation = window.confirm("CUIDADO: Você vai apagar TODOS os códigos do sistema. Todos os usuários serão expulsos. Continuar?");
-    if (!confirmation) return;
     
     setDeleting(true);
     try {
@@ -275,14 +280,35 @@ export default function AdminPage() {
                       <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
                       <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit}</p>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => deleteIndividualCode(item.id)} 
-                      className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </Button>
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="rounded-[30px]">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="font-black uppercase text-blue-900">APAGAR USUÁRIO?</AlertDialogTitle>
+                          <AlertDialogDescription className="font-bold text-slate-400">
+                            O usuário será desconectado imediatamente do sistema.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="rounded-xl font-black">CANCELAR</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => deleteIndividualCode(item.id)}
+                            className="bg-red-600 rounded-xl font-black"
+                          >
+                            CONFIRMAR
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </CardContent>
                 </Card>
               ))
@@ -312,14 +338,35 @@ export default function AdminPage() {
                       >
                         <Copy className="w-4 h-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => deleteIndividualCode(item.id)} 
-                        className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-[30px]">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="font-black uppercase text-blue-900">APAGAR CÓDIGO?</AlertDialogTitle>
+                            <AlertDialogDescription className="font-bold text-slate-400">
+                              Este código pendente será removido permanentemente.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-xl font-black">CANCELAR</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteIndividualCode(item.id)}
+                              className="bg-red-600 rounded-xl font-black"
+                            >
+                              CONFIRMAR
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </CardContent>
                 </Card>
@@ -330,15 +377,35 @@ export default function AdminPage() {
 
         {codes.length > 0 && (
           <div className="pt-8 pb-12">
-            <Button 
-              onClick={clearAllCodes} 
-              disabled={deleting}
-              variant="outline"
-              className="w-full h-16 border-red-100 text-red-500 hover:bg-red-500 hover:text-white font-black rounded-[25px] flex items-center justify-center gap-2 transition-all"
-            >
-              {deleting ? <Loader2 className="animate-spin" /> : <AlertTriangle className="w-5 h-5" />}
-              APAGAR TODOS OS CÓDIGOS
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  disabled={deleting}
+                  variant="outline"
+                  className="w-full h-16 border-red-100 text-red-500 hover:bg-red-500 hover:text-white font-black rounded-[25px] flex items-center justify-center gap-2 transition-all"
+                >
+                  {deleting ? <Loader2 className="animate-spin" /> : <AlertTriangle className="w-5 h-5" />}
+                  APAGAR TODOS OS CÓDIGOS
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-[30px]">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-black uppercase text-red-600">LIMPEZA TOTAL?</AlertDialogTitle>
+                  <AlertDialogDescription className="font-bold text-slate-400">
+                    ISSO VAI APAGAR TODOS OS ACESSOS. Todos os usuários serão desconectados agora.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-xl font-black">CANCELAR</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={clearAllCodes}
+                    className="bg-red-600 rounded-xl font-black"
+                  >
+                    APAGAR TUDO
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
       </main>
