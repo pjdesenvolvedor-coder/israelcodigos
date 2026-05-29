@@ -4,14 +4,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   Copy,
-  Trash2,
   Smartphone,
-  ShieldCheck,
   Zap,
-  Clock,
-  Timer,
   AlertCircle,
-  LogOut,
   BrainCircuit,
   ChevronDown,
   ChevronUp,
@@ -20,9 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import { useFirestore, useCollection } from "@/firebase";
-import { collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
+import { useFirestore, useCollection, useDoc } from "@/firebase";
+import { collection, query, orderBy, limit, doc } from "firebase/firestore";
 
 interface WebhookEntry {
   id: string;
@@ -46,15 +40,17 @@ export function WebhookDashboard() {
   const [now, setNow] = useState<number>(Date.now());
   const [accessExpiresAt, setAccessExpiresAt] = useState<string | null>(null);
   const [sessionStart, setSessionStart] = useState<string | null>(null);
-  const [dailyLimit, setDailyLimit] = useState<number>(10);
   const [showAI, setShowAI] = useState(false);
   const [usedTodayIds, setUsedTodayIds] = useState<string[]>([]);
+
+  // Escuta o limite global do banco de dados em tempo real
+  const configDocRef = useMemo(() => (db ? doc(db, "_system", "config") : null), [db]);
+  const { data: globalConfig } = useDoc<any>(configDocRef);
+  const dailyLimit = globalConfig?.globalLimit || 10;
 
   useEffect(() => {
     setAccessExpiresAt(localStorage.getItem("israel_access_expires"));
     setSessionStart(localStorage.getItem("israel_session_start"));
-    const limitVal = localStorage.getItem("israel_daily_limit");
-    if (limitVal) setDailyLimit(parseInt(limitVal));
     
     // Recupera IDs de sinais já "consumidos" hoje
     const today = new Date().toLocaleDateString();
@@ -109,12 +105,12 @@ export function WebhookDashboard() {
       return;
     }
 
-    // Se é um sinal novo e atingiu o limite
+    // Se é um sinal novo e atingiu o limite global atual
     if (usedCount >= dailyLimit) {
       toast({
         variant: "destructive",
         title: "LIMITE DIÁRIO EXCEDIDO",
-        description: `Você já consumiu seus ${dailyLimit} sinais diários.`
+        description: `Você já consumiu seus ${dailyLimit} sinais diários permitidos.`
       });
       return;
     }
@@ -212,7 +208,7 @@ export function WebhookDashboard() {
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black h-16 rounded-[24px] text-lg shadow-xl shadow-blue-100"
                   >
                     <Copy className="w-5 h-5 mr-2" />
-                    {usedCount >= dailyLimit && !usedTodayIds.includes(latestEntry.id) ? "DESBLOQUEAR ACESSO" : "COPIAR AGORA"}
+                    {usedCount >= dailyLimit && !usedTodayIds.includes(latestEntry.id) ? "LIMITE EXCEDIDO" : "COPIAR AGORA"}
                   </Button>
                 </>
               )}

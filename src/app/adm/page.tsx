@@ -60,7 +60,7 @@ export default function AdminPage() {
         try {
           const settingsDoc = await getDoc(doc(db, "_system", "config"));
           if (settingsDoc.exists()) {
-            setDailyLimitInput(settingsDoc.data().defaultDailyLimit?.toString() || "10");
+            setDailyLimitInput(settingsDoc.data().globalLimit?.toString() || "10");
           }
           setDbStatus('online');
         } catch (err) {
@@ -83,14 +83,15 @@ export default function AdminPage() {
   const handleSaveSettings = () => {
     if (!db) return;
     setSavingSettings(true);
+    const limit = parseInt(dailyLimitInput) || 10;
     const configData = {
-      defaultDailyLimit: parseInt(dailyLimitInput) || 10,
+      globalLimit: limit,
       updatedAt: new Date().toISOString()
     };
     
     setDoc(doc(db, "_system", "config"), configData)
       .then(() => {
-        toast({ title: "CONFIGURAÇÃO SALVA", className: "bg-green-600 text-white rounded-2xl" });
+        toast({ title: "LIMITE ATUALIZADO PARA TODOS", className: "bg-green-600 text-white rounded-2xl" });
       })
       .catch(async (error) => {
         const permissionError = new FirestorePermissionError({
@@ -233,7 +234,7 @@ export default function AdminPage() {
         <div className="space-y-4">
           <div className="space-y-3 bg-white p-5 rounded-[30px] border border-blue-50">
             <div className="flex items-center justify-between mb-1">
-              <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-2">Sinais Diários Padrão</label>
+              <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-2">Limite Global (Todos os Usuários)</label>
               <Hash className="w-3 h-3 text-blue-200" />
             </div>
             <div className="flex gap-2">
@@ -278,7 +279,7 @@ export default function AdminPage() {
                   <CardContent className="p-4 flex items-center justify-between">
                     <div>
                       <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
-                      <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Criado em: {new Date(item.createdAt).toLocaleDateString()}</p>
                     </div>
                     
                     <AlertDialog>
@@ -327,7 +328,7 @@ export default function AdminPage() {
                   <CardContent className="p-4 flex items-center justify-between">
                     <div>
                       <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
-                      <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Aguardando uso</p>
                     </div>
                     <div className="flex gap-2">
                       <Button 
