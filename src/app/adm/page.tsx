@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Settings, Plus, Key, Copy, Trash2, ShieldAlert, Loader2, Users, Clock, CheckCircle2, Wifi, WifiOff, Hash, Save, AlertTriangle } from "lucide-react";
+import { Settings, Plus, Copy, Trash2, Loader2, Users, Clock, Hash, AlertTriangle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,6 +29,7 @@ export default function AdminPage() {
   const [passInput, setPassInput] = useState("");
   const [isLogged, setIsLogged] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'error'>('checking');
   const [dailyLimitInput, setDailyLimitInput] = useState("10");
@@ -68,7 +69,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = () => {
     if (!db) return;
     setSavingSettings(true);
     const configData = {
@@ -122,13 +123,13 @@ export default function AdminPage() {
   const deleteIndividualCode = (id: string) => {
     if (!db || !id) return;
     
-    const isConfirmed = window.confirm("Deseja realmente apagar este código de acesso? O usuário perderá o acesso na hora.");
-    if (!isConfirmed) return;
+    const confirmation = window.confirm("Deseja APAGAR este acesso? O usuário será desconectado imediatamente.");
+    if (!confirmation) return;
 
     const docRef = doc(db, "access_codes", id);
     deleteDoc(docRef)
       .then(() => {
-        toast({ title: "ACESSO REMOVIDO", className: "bg-slate-900 text-white rounded-2xl" });
+        toast({ title: "ACESSO REMOVIDO" });
       })
       .catch(async (err) => {
         const permissionError = new FirestorePermissionError({
@@ -142,13 +143,15 @@ export default function AdminPage() {
   const clearAllCodes = async () => {
     if (!db) return;
     
-    const isConfirmed = window.confirm("CUIDADO: Você vai apagar TODOS os códigos (ativos e pendentes). Todos os usuários serão desconectados. Continuar?");
-    if (!isConfirmed) return;
+    const confirmation = window.confirm("CUIDADO: Você vai apagar TODOS os códigos do sistema. Todos os usuários serão expulsos. Continuar?");
+    if (!confirmation) return;
     
+    setDeleting(true);
     try {
       const snapshot = await getDocs(collection(db, "access_codes"));
       if (snapshot.empty) {
         toast({ title: "NÃO HÁ CÓDIGOS PARA APAGAR" });
+        setDeleting(false);
         return;
       }
 
@@ -165,9 +168,11 @@ export default function AdminPage() {
             operation: 'delete'
           });
           errorEmitter.emit('permission-error', permissionError);
-        });
+        })
+        .finally(() => setDeleting(false));
     } catch (error) {
       toast({ variant: "destructive", title: "ERRO AO ACESSAR BANCO" });
+      setDeleting(false);
     }
   };
 
@@ -184,7 +189,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <Settings className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+            <ShieldCheck className="w-16 h-16 text-blue-500 mx-auto mb-4" />
             <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Admin Receptor</h1>
           </div>
           <Card className="bg-slate-800 border-slate-700 rounded-[30px]">
@@ -242,7 +247,6 @@ export default function AdminPage() {
                 {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : "SALVAR"}
               </Button>
             </div>
-            <p className="text-[8px] text-slate-400 font-bold uppercase text-center">Define o limite para os próximos códigos gerados</p>
           </div>
           
           <Button onClick={generateCode} disabled={loading} className="w-full h-20 bg-blue-600 text-white font-black rounded-[30px] text-lg shadow-xl shadow-blue-100 active:scale-95 transition-transform">
@@ -269,18 +273,16 @@ export default function AdminPage() {
                   <CardContent className="p-4 flex items-center justify-between">
                     <div>
                       <p className="text-xl font-mono font-black text-blue-900">{item.code}</p>
-                      <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit} | Expira: {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : '---'}</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Limite: {item.dailyLimit}</p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => deleteIndividualCode(item.id)} 
-                        className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
-                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => deleteIndividualCode(item.id)} 
+                      className="text-slate-300 hover:text-red-500 hover:bg-red-50 h-10 w-10 rounded-xl"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </Button>
                   </CardContent>
                 </Card>
               ))
@@ -330,13 +332,13 @@ export default function AdminPage() {
           <div className="pt-8 pb-12">
             <Button 
               onClick={clearAllCodes} 
+              disabled={deleting}
               variant="outline"
               className="w-full h-16 border-red-100 text-red-500 hover:bg-red-500 hover:text-white font-black rounded-[25px] flex items-center justify-center gap-2 transition-all"
             >
-              <AlertTriangle className="w-5 h-5" />
+              {deleting ? <Loader2 className="animate-spin" /> : <AlertTriangle className="w-5 h-5" />}
               APAGAR TODOS OS CÓDIGOS
             </Button>
-            <p className="text-[8px] text-center font-bold text-slate-400 uppercase mt-4 tracking-widest">Ação irreversível: desconecta todos os usuários</p>
           </div>
         )}
       </main>
