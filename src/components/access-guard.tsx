@@ -103,7 +103,7 @@ export function AccessGuard({ children }: AccessGuardProps) {
         setIsAuthorized(true);
       } else {
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 30);
+        expiresAt.setDate(expiresAt.getDate() + 35);
         const expiresAtStr = expiresAt.toISOString();
 
         const updateData = {

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, query, orderBy, writeBatch, getDocs, doc, setDoc, getDoc, deleteDoc } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -46,6 +47,7 @@ export default function AdminPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'error'>('checking');
   const [dailyLimitInput, setDailyLimitInput] = useState("10");
+  const [disableCounting, setDisableCounting] = useState(false);
   const { toast } = useToast();
   const db = useFirestore();
 
@@ -63,6 +65,7 @@ export default function AdminPage() {
           const settingsDoc = await getDoc(doc(db, "_system", "config"));
           if (settingsDoc.exists()) {
             setDailyLimitInput(settingsDoc.data().globalLimit?.toString() || "10");
+            setDisableCounting(!!settingsDoc.data().disableCounting);
           }
           setDbStatus('online');
         } catch (err) {
@@ -88,12 +91,13 @@ export default function AdminPage() {
     const limit = parseInt(dailyLimitInput) || 10;
     const configData = {
       globalLimit: limit,
+      disableCounting: disableCounting,
       updatedAt: new Date().toISOString()
     };
     
     setDoc(doc(db, "_system", "config"), configData)
       .then(() => {
-        toast({ title: "LIMITE ATUALIZADO PARA TODOS", className: "bg-green-600 text-white rounded-2xl" });
+        toast({ title: "CONFIGURAÇÕES ATUALIZADAS", className: "bg-green-600 text-white rounded-2xl" });
       })
       .catch(async (error) => {
         const permissionError = new FirestorePermissionError({
@@ -258,6 +262,17 @@ export default function AdminPage() {
               >
                 {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : "SALVAR"}
               </Button>
+            </div>
+            
+            <div className="flex items-center justify-between pt-3 border-t border-slate-50">
+              <div className="flex flex-col space-y-0.5">
+                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-2">Desativar Contagem</span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest ml-2">Esconde a barra de consumo e libera acesso ilimitado</span>
+              </div>
+              <Switch 
+                checked={disableCounting}
+                onCheckedChange={setDisableCounting}
+              />
             </div>
           </div>
           

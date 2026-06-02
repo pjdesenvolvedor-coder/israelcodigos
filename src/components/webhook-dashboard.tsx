@@ -11,7 +11,8 @@ import {
   ChevronDown,
   ChevronUp,
   Lock,
-  Activity
+  Activity,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,31 @@ interface WebhookEntry {
     Conteudo?: string;
   };
 }
+
+const getSignalReason = (entry: WebhookEntry) => {
+  const conteudo = (entry.payload.Conteudo || "").toLowerCase();
+  const assunto = (entry.payload.Assunto || "").toLowerCase();
+  const produto = (entry.payload.Produto || "").toLowerCase();
+
+  if (
+    conteudo.includes("http") || 
+    conteudo.includes("www.") || 
+    conteudo.includes("link") || 
+    conteudo.includes("residencia") || 
+    conteudo.includes("residência") || 
+    conteudo.includes("household") ||
+    assunto.includes("link") ||
+    assunto.includes("residencia") ||
+    assunto.includes("residência") ||
+    produto.includes("link") ||
+    produto.includes("residencia") ||
+    produto.includes("residência")
+  ) {
+    return "Link de Residência";
+  }
+
+  return "Código de Acesso";
+};
 
 const EXPIRATION_MS = 15 * 60 * 1000;
 
@@ -63,6 +89,7 @@ export function WebhookDashboard() {
   const configDocRef = useMemo(() => (db ? doc(db, "_system", "config") : null), [db]);
   const { data: globalConfig } = useDoc<any>(configDocRef);
   const dailyLimit = globalConfig?.globalLimit || 10;
+  const disableCounting = !!globalConfig?.disableCounting;
 
   useEffect(() => {
     setAccessExpiresAt(localStorage.getItem("israel_access_expires"));
@@ -92,9 +119,6 @@ export function WebhookDashboard() {
   const { data: rawData = [] } = useCollection<any>(webhooksQuery);
 
   const activeHistory = useMemo(() => {
-    if (!sessionStart) return [];
-    const sessionStartTime = new Date(sessionStart).getTime();
-
     return (rawData || [])
       .map(doc => ({
         id: doc.id,
@@ -102,20 +126,22 @@ export function WebhookDashboard() {
         payload: doc.payload,
         interpretation: doc.interpretation
       } as WebhookEntry))
-      .filter(item => {
-        const itemTime = new Date(item.timestamp).getTime();
-        const isNotExpired = (now - itemTime) < EXPIRATION_MS;
-        const isAfterLogin = itemTime >= sessionStartTime;
-        return isNotExpired && isAfterLogin;
-      });
-  }, [rawData, now, sessionStart]);
+      .slice(0, 5);
+  }, [rawData]);
 
   // EFEITO CRÍTICO: Consumo automático de cota ao receber sinal
   useEffect(() => {
-    if (!db || !accessDocId || !activeHistory.length) return;
+    if (!db || !accessDocId || !activeHistory.length || !sessionStart || disableCounting) return;
 
-    // Filtra sinais que acabaram de chegar e ainda não foram contabilizados
-    const uncountedSignals = activeHistory.filter(s => !usedTodayIds.includes(s.id));
+    const sessionStartTime = new Date(sessionStart).getTime();
+
+    // Filtra sinais que acabaram de chegar, ainda não foram contabilizados e foram recebidos APÓS o login
+    const uncountedSignals = activeHistory.filter(s => {
+      const isUncounted = !usedTodayIds.includes(s.id);
+      const isAfterLogin = new Date(s.timestamp).getTime() >= sessionStartTime;
+      return isUncounted && isAfterLogin;
+    });
+
     if (uncountedSignals.length === 0) return;
 
     // Quanto espaço temos na cota diária?
@@ -143,16 +169,43 @@ export function WebhookDashboard() {
       });
       errorEmitter.emit('permission-error', permissionError);
     });
-  }, [activeHistory, usedTodayIds, db, accessDocId, dailyLimit, accessDocData?.lastUsageDate]);
+  }, [activeHistory, usedTodayIds, db, accessDocId, dailyLimit, accessDocData?.lastUsageDate, sessionStart, disableCounting]);
 
   const usedCount = usedTodayIds.length;
   const progressValue = (usedCount / dailyLimit) * 100;
+
+  // Função para formatar o tempo decorrido
+  const formatTimeElapsed = (timestamp: string) => {
+    const diffMs = now - new Date(timestamp).getTime();
+    const diffSecs = Math.max(0, Math.floor(diffMs / 1000));
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSecs < 60) {
+      return "Agora mesmo";
+    }
+    if (diffMins < 60) {
+      return `há ${diffMins} min`;
+    }
+    if (diffHours < 24) {
+      return `há ${diffHours} h`;
+    }
+    return `há ${diffDays} d`;
+  };
   
   // O sinal mais recente
   const latestEntry = activeHistory[0];
 
   // Função para determinar se um sinal pode ser visto
   const canViewSignal = (signalId: string) => {
+    if (disableCounting) return true;
+
+    // Se o sinal foi recebido antes do login (sinal histórico), ele é gratuito para ver/copiar
+    const signal = activeHistory.find(s => s.id === signalId);
+    if (signal && sessionStart && new Date(signal.timestamp).getTime() < new Date(sessionStart).getTime()) {
+      return true;
+    }
     // Pode ver se já foi contado OU se ainda temos saldo para contar ele agora
     if (usedTodayIds.includes(signalId)) return true;
     return usedTodayIds.length < dailyLimit;
@@ -170,11 +223,23 @@ export function WebhookDashboard() {
       return;
     }
 
-    navigator.clipboard.writeText(entry.payload.Conteudo || "");
-    toast({ 
-      title: "CÓDIGO COPIADO", 
-      className: "bg-blue-600 border-none text-white font-black rounded-2xl"
-    });
+    const isLink = getSignalReason(entry) === "Link de Residência";
+    const content = entry.payload.Conteudo || "";
+
+    if (isLink && content.startsWith("http")) {
+      window.open(content, "_blank");
+      toast({
+        title: "ABRINDO LINK",
+        description: "O link de residência está sendo aberto em uma nova aba.",
+        className: "bg-blue-600 border-none text-white font-black rounded-2xl"
+      });
+    } else {
+      navigator.clipboard.writeText(content);
+      toast({ 
+        title: "CÓDIGO COPIADO", 
+        className: "bg-blue-600 border-none text-white font-black rounded-2xl"
+      });
+    }
   };
 
   const handleLogout = () => {
@@ -211,33 +276,35 @@ export function WebhookDashboard() {
       </header>
 
       <main className="flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-hide">
-        <div className="w-full bg-white p-5 rounded-[30px] shadow-sm border border-blue-50/50 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className={cn("w-3 h-3", usedCount >= dailyLimit ? "text-red-500" : "text-blue-500")} />
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">Consumo Tático (Auto-Contagem)</span>
+        {!disableCounting && (
+          <div className="w-full bg-white p-5 rounded-[30px] shadow-sm border border-blue-50/50 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className={cn("w-3 h-3", usedCount >= dailyLimit ? "text-red-500" : "text-blue-500")} />
+                <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">Consumo Tático (Auto-Contagem)</span>
+              </div>
+              <span className="text-[10px] font-mono font-black text-blue-600">
+                {usedCount} <span className="text-slate-300">/</span> {dailyLimit}
+              </span>
             </div>
-            <span className="text-[10px] font-mono font-black text-blue-600">
-              {usedCount} <span className="text-slate-300">/</span> {dailyLimit}
-            </span>
+            
+            <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full transition-all duration-500 ease-out rounded-full",
+                  usedCount >= dailyLimit ? "bg-red-500" : "bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+                )}
+                style={{ width: `${Math.min(progressValue, 100)}%` }}
+              />
+            </div>
+            
+            <p className="text-[8px] font-bold text-slate-400 uppercase text-center tracking-widest">
+              {usedCount >= dailyLimit 
+                ? "Cota esgotada! Novos sinais bloqueados automaticamente." 
+                : "Cada novo sinal recebido consome 1 ponto da cota."}
+            </p>
           </div>
-          
-          <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-            <div 
-              className={cn(
-                "h-full transition-all duration-500 ease-out rounded-full",
-                usedCount >= dailyLimit ? "bg-red-500" : "bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"
-              )}
-              style={{ width: `${Math.min(progressValue, 100)}%` }}
-            />
-          </div>
-          
-          <p className="text-[8px] font-bold text-slate-400 uppercase text-center tracking-widest">
-            {usedCount >= dailyLimit 
-              ? "Cota esgotada! Novos sinais bloqueados automaticamente." 
-              : "Cada novo sinal recebido consome 1 ponto da cota."}
-          </p>
-        </div>
+        )}
 
         <div className="space-y-4">
           <Card className="bg-white border-none rounded-[40px] shadow-[0_10px_30px_rgba(0,0,0,0.02)] overflow-hidden">
@@ -257,7 +324,9 @@ export function WebhookDashboard() {
                   <div className="bg-slate-50 border border-blue-50/50 rounded-[35px] py-12 flex flex-col items-center justify-center relative group overflow-hidden">
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-blue-100 shadow-sm">
                       <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
-                      <span className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Live Signal</span>
+                      <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest">
+                        {getSignalReason(latestEntry)}
+                      </span>
                     </div>
                     
                     {!canViewSignal(latestEntry.id) ? (
@@ -269,9 +338,20 @@ export function WebhookDashboard() {
                         <p className="text-[10px] font-bold text-red-400 uppercase">Cota Diária Excedida</p>
                       </div>
                     ) : (
-                      <span className="text-7xl font-black font-mono tracking-tighter text-blue-900 drop-shadow-sm">
-                        {latestEntry.payload.Conteudo || "----"}
-                      </span>
+                      <div className="flex flex-col items-center gap-3">
+                        {getSignalReason(latestEntry) === "Link de Residência" ? (
+                          <span className="text-3xl font-black text-blue-900 drop-shadow-sm uppercase tracking-tight text-center py-4">
+                            CÓDIGO RESIDÊNCIA
+                          </span>
+                        ) : (
+                          <span className="text-7xl font-black font-mono tracking-tighter text-blue-900 drop-shadow-sm">
+                            {latestEntry.payload.Conteudo || "----"}
+                          </span>
+                        )}
+                        <span className="text-[10px] bg-emerald-500 text-white font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm animate-pulse">
+                          {formatTimeElapsed(latestEntry.timestamp)}
+                        </span>
+                      </div>
                     )}
                   </div>
 
@@ -298,8 +378,17 @@ export function WebhookDashboard() {
                         : "bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-100"
                     )}
                   >
-                    <Copy className="w-5 h-5 mr-3" />
-                    {!canViewSignal(latestEntry.id) ? "BLOQUEADO" : "COPIAR SINAL"}
+                    {getSignalReason(latestEntry) === "Link de Residência" ? (
+                      <>
+                        <ExternalLink className="w-5 h-5 mr-3" />
+                        {!canViewSignal(latestEntry.id) ? "BLOQUEADO" : "CLIQUE AQUI"}
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5 mr-3" />
+                        {!canViewSignal(latestEntry.id) ? "BLOQUEADO" : "COPIAR SINAL"}
+                      </>
+                    )}
                   </Button>
                 </>
               )}
@@ -322,18 +411,31 @@ export function WebhookDashboard() {
                   className="bg-white p-5 rounded-[30px] border border-blue-50/50 flex items-center justify-between shadow-sm active:bg-blue-50 transition-colors cursor-pointer group"
                 >
                   <div className="flex flex-col">
-                    <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">{entry.payload.Produto || "Sinal Tático"}</span>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">{getSignalReason(entry)}</span>
+                      <span className="text-[8px] bg-emerald-500 text-white font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                        {formatTimeElapsed(entry.timestamp)}
+                      </span>
+                    </div>
                     {!canViewSignal(entry.id) ? (
                       <div className="flex items-center gap-2">
                         <Lock className="w-3 h-3 text-red-300" />
                         <span className="text-sm font-black text-red-300 uppercase">BLOQUEADO</span>
                       </div>
                     ) : (
-                      <span className="text-2xl font-mono font-black text-slate-800 group-hover:text-blue-600 transition-colors">{entry.payload.Conteudo}</span>
+                      getSignalReason(entry) === "Link de Residência" ? (
+                        <span className="text-base font-black text-blue-900 uppercase tracking-wide group-hover:text-blue-600 transition-colors">CÓDIGO RESIDÊNCIA</span>
+                      ) : (
+                        <span className="text-2xl font-mono font-black text-slate-800 group-hover:text-blue-600 transition-colors">{entry.payload.Conteudo}</span>
+                      )
                     )}
                   </div>
                   <div className="bg-slate-50 p-3 rounded-2xl group-hover:bg-blue-50 transition-colors">
-                    <Copy className="w-4 h-4 text-slate-300 group-hover:text-blue-500" />
+                    {getSignalReason(entry) === "Link de Residência" ? (
+                      <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-blue-500" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-slate-300 group-hover:text-blue-500" />
+                    )}
                   </div>
                 </div>
               ))}

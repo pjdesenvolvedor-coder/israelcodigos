@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     }
 
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + 35);
 
     await updateDoc(doc(firestore, "access_codes", docSnap.id), {
       usedAt: new Date().toISOString(),
@@ -87,8 +87,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       valid: true, 
       expiresAt: expiresAt.toISOString(),
-      message: "Código ativado por 30 dias" 
-    }, { headers: headers });
+      message: "Código ativado por 35 dias" 
+    }, { headers: corsHeaders });
   }
 
   return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
