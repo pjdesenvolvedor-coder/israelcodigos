@@ -89,7 +89,7 @@ export function WebhookDashboard() {
   const configDocRef = useMemo(() => (db ? doc(db, "_system", "config") : null), [db]);
   const { data: globalConfig } = useDoc<any>(configDocRef);
   const dailyLimit = globalConfig?.globalLimit || 10;
-  const disableCounting = !!globalConfig?.disableCounting;
+  const disableCounting = true; // Sempre desativado (sem login/barras de limites)
 
   useEffect(() => {
     setAccessExpiresAt(localStorage.getItem("israel_access_expires"));
@@ -199,20 +199,11 @@ export function WebhookDashboard() {
 
   // Função para determinar se um sinal pode ser visto
   const canViewSignal = (signalId: string) => {
-    if (disableCounting) return true;
-
-    // Se o sinal foi recebido antes do login (sinal histórico), ele é gratuito para ver/copiar
-    const signal = activeHistory.find(s => s.id === signalId);
-    if (signal && sessionStart && new Date(signal.timestamp).getTime() < new Date(sessionStart).getTime()) {
-      return true;
-    }
-    // Pode ver se já foi contado OU se ainda temos saldo para contar ele agora
-    if (usedTodayIds.includes(signalId)) return true;
-    return usedTodayIds.length < dailyLimit;
+    return true; // Todos os sinais são liberados
   };
 
   const handleCopy = (entry: WebhookEntry) => {
-    if (!db || !accessDocId) return;
+    if (!db) return;
 
     if (!canViewSignal(entry.id)) {
       toast({
@@ -250,18 +241,8 @@ export function WebhookDashboard() {
     window.location.reload();
   };
 
-  const isAccessExpired = accessExpiresAt ? now > new Date(accessExpiresAt).getTime() : false;
-
   return (
     <div className="h-screen bg-slate-50 max-w-md mx-auto flex flex-col overflow-hidden relative">
-      {isAccessExpired && (
-        <div className="fixed inset-0 z-[200] backdrop-blur-xl bg-white/40 flex flex-col items-center justify-center p-8 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mb-6" />
-          <h2 className="text-3xl font-black text-slate-900 uppercase mb-8">ACESSO EXPIRADO</h2>
-          <Button onClick={handleLogout} className="w-full h-16 bg-blue-600 font-black rounded-2xl">SAIR</Button>
-        </div>
-      )}
-
       <header className="sticky top-0 z-50 p-6 flex items-center justify-between bg-white border-b shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-xl">
@@ -272,7 +253,6 @@ export function WebhookDashboard() {
             <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Status: Operacional</span>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout} className="font-black rounded-xl text-[10px] text-red-500 hover:bg-red-50">SAIR</Button>
       </header>
 
       <main className="flex-1 overflow-y-auto px-5 py-6 space-y-6 scrollbar-hide">

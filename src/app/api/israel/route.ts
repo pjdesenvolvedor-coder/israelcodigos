@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { initializeFirebase } from "@/firebase";
-import { collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { interpretPayload } from "@/ai/flows/interpret-payload-flow";
 
 export const dynamic = 'force-dynamic';
@@ -37,23 +37,34 @@ export async function POST(req: NextRequest) {
     const headers = Object.fromEntries(req.headers.entries());
     const timestamp = new Date().toISOString();
 
-    // Interpreta o sinal usando IA
-    let interpretation = null;
-    try {
-      const aiResult = await interpretPayload({ payloadJson: JSON.stringify(payload) });
-      interpretation = aiResult;
-    } catch (aiError) {
-      console.error("Erro na interpretação da IA:", aiError);
-    }
-
-    await addDoc(collection(firestore, "webhooks"), {
+    // 1. Salva o webhook bruto imediatamente para evitar perdas sob carga concorrente
+    const docRef = await addDoc(collection(firestore, "webhooks"), {
       timestamp: timestamp,
       payload: payload,
       headers: headers,
       method: "POST",
       createdAt: timestamp,
-      interpretation: interpretation
+      interpretation: null
     });
+
+    // 2. Tenta interpretar o sinal usando IA com um tempo limite de 2 segundos
+    let interpretation = null;
+    try {
+      const aiPromise = interpretPayload({ payloadJson: JSON.stringify(payload) });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout da IA")), 2000)
+      );
+
+      interpretation = await Promise.race([aiPromise, timeoutPromise]) as any;
+
+      if (interpretation) {
+        await updateDoc(doc(firestore, "webhooks", docRef.id), {
+          interpretation: interpretation
+        });
+      }
+    } catch (aiError) {
+      console.error("Erro ou Timeout na interpretação da IA:", aiError);
+    }
 
     return NextResponse.json(
       { ok: true, message: "Capturado e Interpretado pela IA" },
