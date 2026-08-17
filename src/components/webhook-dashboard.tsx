@@ -63,6 +63,29 @@ const getSignalReason = (entry: WebhookEntry) => {
   return "Código de Acesso";
 };
 
+const isCodeOrResidenceLink = (entry: WebhookEntry) => {
+  const content = (entry.payload.Conteudo || "").trim();
+  if (!content) return false;
+
+  const reason = getSignalReason(entry);
+  if (reason === "Link de Residência") {
+    return true;
+  }
+
+  // Se for código, não deve ter espaços e deve ser curto para ignorar mensagens de texto
+  const hasSpaces = content.includes(" ") || content.includes("\n");
+  if (hasSpaces || content.length > 20) {
+    return false;
+  }
+
+  const lowercaseContent = content.toLowerCase();
+  if (lowercaseContent === "teste" || lowercaseContent === "test" || lowercaseContent.includes("configurado")) {
+    return false;
+  }
+
+  return true;
+};
+
 const EXPIRATION_MS = 15 * 60 * 1000;
 
 export function WebhookDashboard() {
@@ -114,7 +137,7 @@ export function WebhookDashboard() {
 
   const webhooksQuery = useMemo(() => {
     if (!db) return null;
-    return query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(50));
+    return query(collection(db, "webhooks"), orderBy("createdAt", "desc"), limit(100));
   }, [db]);
 
   const { data: rawData = [] } = useCollection<any>(webhooksQuery);
@@ -127,7 +150,8 @@ export function WebhookDashboard() {
         payload: doc.payload,
         interpretation: doc.interpretation
       } as WebhookEntry))
-      .slice(0, 5);
+      .filter(isCodeOrResidenceLink)
+      .slice(0, 10);
   }, [rawData]);
 
   // EFEITO CRÍTICO: Consumo automático de cota ao receber sinal
