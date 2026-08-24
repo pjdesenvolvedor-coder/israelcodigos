@@ -99,7 +99,6 @@ export function WebhookDashboard() {
   const [accessExpiresAt, setAccessExpiresAt] = useState<string | null>(null);
   const [sessionStart, setSessionStart] = useState<string | null>(null);
   const [showAI, setShowAI] = useState(false);
-  const [showPayload, setShowPayload] = useState(false);
   
   const accessToken = typeof window !== 'undefined' ? localStorage.getItem("israel_access_token") : null;
 
@@ -383,23 +382,7 @@ export function WebhookDashboard() {
                     </div>
                   )}
 
-                  {/* DADOS DA REQUISIÇÃO (PAYLOAD BRUTO) */}
-                  {canViewSignal(latestEntry.id) && (
-                    <div className="bg-slate-900 rounded-[25px] p-5 space-y-3 shadow-xl">
-                      <button onClick={() => setShowPayload(!showPayload)} className="w-full flex items-center justify-between text-blue-400">
-                        <div className="flex items-center gap-2">
-                          <Smartphone className="w-4 h-4" />
-                          <span className="text-[10px] font-black uppercase tracking-tighter">Payload Recebido (JSON)</span>
-                        </div>
-                        {showPayload ? <ChevronUp className="w-4 h-4 opacity-50" /> : <ChevronDown className="w-4 h-4 opacity-50" />}
-                      </button>
-                      {showPayload && (
-                        <pre className="text-[10px] font-mono text-emerald-400 bg-slate-950 p-4 rounded-xl overflow-x-auto whitespace-pre-wrap break-all max-h-48 scrollbar-hide text-left">
-                          {JSON.stringify(latestEntry.payload, null, 2)}
-                        </pre>
-                      )}
-                    </div>
-                  )}
+
 
                   <Button 
                     onClick={() => handleCopy(latestEntry)}
