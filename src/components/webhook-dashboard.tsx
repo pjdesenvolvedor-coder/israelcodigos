@@ -39,8 +39,12 @@ interface WebhookEntry {
 }
 
 const getSignalReason = (entry: WebhookEntry) => {
-  const conteudo = (entry.payload.Conteudo || "").toLowerCase();
   const assunto = (entry.payload.Assunto || "").toLowerCase();
+  if (assunto.includes("link de acesso") || assunto === "link de acesso") {
+    return "Link de Acesso";
+  }
+
+  const conteudo = (entry.payload.Conteudo || "").toLowerCase();
   const produto = (entry.payload.Produto || "").toLowerCase();
 
   if (
@@ -64,11 +68,11 @@ const getSignalReason = (entry: WebhookEntry) => {
 };
 
 const isCodeOrResidenceLink = (entry: WebhookEntry) => {
-  const content = (entry.payload.Conteudo || "").trim();
+  const content = (entry.payload.Conteudo || entry.payload.Link || "").trim();
   if (!content) return false;
 
   const reason = getSignalReason(entry);
-  if (reason === "Link de Residência") {
+  if (reason === "Link de Residência" || reason === "Link de Acesso") {
     return true;
   }
 
@@ -239,14 +243,16 @@ export function WebhookDashboard() {
       return;
     }
 
-    const isLink = getSignalReason(entry) === "Link de Residência";
-    const content = entry.payload.Conteudo || "";
+    const reason = getSignalReason(entry);
+    const isLink = reason === "Link de Residência";
+    const isLinkAcesso = reason === "Link de Acesso";
+    const content = entry.payload.Link || entry.payload.Conteudo || "";
 
-    if (isLink && content.startsWith("http")) {
+    if ((isLink || isLinkAcesso) && content.startsWith("http")) {
       window.open(content, "_blank");
       toast({
-        title: "ABRINDO LINK",
-        description: "O link de residência está sendo aberto em uma nova aba.",
+        title: isLinkAcesso ? "APROVANDO TV" : "ABRINDO LINK",
+        description: isLinkAcesso ? "O link de aprovação está sendo aberto." : "O link de residência está sendo aberto em uma nova aba.",
         className: "bg-blue-600 border-none text-white font-black rounded-2xl"
       });
     } else {
@@ -348,6 +354,10 @@ export function WebhookDashboard() {
                           <span className="text-3xl font-black text-blue-900 drop-shadow-sm uppercase tracking-tight text-center py-4">
                             CÓDIGO RESIDÊNCIA
                           </span>
+                        ) : getSignalReason(latestEntry) === "Link de Acesso" ? (
+                          <span className="text-3xl font-black text-blue-900 drop-shadow-sm uppercase tracking-tight text-center py-4">
+                            CÓDIGO TV
+                          </span>
                         ) : (
                           <span className="text-7xl font-black font-mono tracking-tighter text-blue-900 drop-shadow-sm">
                             {latestEntry.payload.Conteudo || "----"}
@@ -406,6 +416,11 @@ export function WebhookDashboard() {
                         <ExternalLink className="w-5 h-5 mr-3" />
                         {!canViewSignal(latestEntry.id) ? "BLOQUEADO" : "CLIQUE AQUI"}
                       </>
+                    ) : getSignalReason(latestEntry) === "Link de Acesso" ? (
+                      <>
+                        <ExternalLink className="w-5 h-5 mr-3" />
+                        {!canViewSignal(latestEntry.id) ? "BLOQUEADO" : "Aprovar TV"}
+                      </>
                     ) : (
                       <>
                         <Copy className="w-5 h-5 mr-3" />
@@ -448,13 +463,15 @@ export function WebhookDashboard() {
                     ) : (
                       getSignalReason(entry) === "Link de Residência" ? (
                         <span className="text-base font-black text-blue-900 uppercase tracking-wide group-hover:text-blue-600 transition-colors">CÓDIGO RESIDÊNCIA</span>
+                      ) : getSignalReason(entry) === "Link de Acesso" ? (
+                        <span className="text-base font-black text-blue-900 uppercase tracking-wide group-hover:text-blue-600 transition-colors">CÓDIGO TV</span>
                       ) : (
                         <span className="text-2xl font-mono font-black text-slate-800 group-hover:text-blue-600 transition-colors">{entry.payload.Conteudo}</span>
                       )
                     )}
                   </div>
                   <div className="bg-slate-50 p-3 rounded-2xl group-hover:bg-blue-50 transition-colors">
-                    {getSignalReason(entry) === "Link de Residência" ? (
+                    {getSignalReason(entry) === "Link de Residência" || getSignalReason(entry) === "Link de Acesso" ? (
                       <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-blue-500" />
                     ) : (
                       <Copy className="w-4 h-4 text-slate-300 group-hover:text-blue-500" />
