@@ -88,6 +88,11 @@ const isCodeOrResidenceLink = (entry: WebhookEntry) => {
     return true;
   }
 
+  // Bloqueia códigos de 6 dígitos da Netflix
+  if (/^\d{6}$/.test(content)) {
+    return false;
+  }
+
   // Se for código, não deve ter espaços e deve ser curto para ignorar mensagens de texto
   const hasSpaces = content.includes(" ") || content.includes("\n");
   if (hasSpaces || content.length > 20) {

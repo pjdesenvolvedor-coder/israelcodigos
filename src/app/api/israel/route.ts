@@ -37,6 +37,14 @@ export async function POST(req: NextRequest) {
     const headers = Object.fromEntries(req.headers.entries());
     const timestamp = new Date().toISOString();
 
+    const rawContent = String(payload?.Conteudo || "").trim();
+    if (/^\d{6}$/.test(rawContent)) {
+      return NextResponse.json(
+        { ok: true, ignored: true, message: "Código de 6 dígitos ignorado" },
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
     // 1. Salva o webhook bruto imediatamente para evitar perdas sob carga concorrente
     const docRef = await addDoc(collection(firestore, "webhooks"), {
       timestamp: timestamp,
