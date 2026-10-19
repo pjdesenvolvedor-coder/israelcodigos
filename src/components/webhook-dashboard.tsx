@@ -33,10 +33,22 @@ interface WebhookEntry {
   };
   payload: {
     Produto?: string;
+    Email?: string;
     Assunto?: string;
     Conteudo?: string;
+    Link?: string;
   };
 }
+
+const formatMaskedEmail = (entry: WebhookEntry) => {
+  const email = (entry.payload?.Email || (entry.payload as any)?.email || "").trim();
+  if (!email) return null;
+  const atIndex = email.indexOf("@");
+  if (atIndex !== -1) {
+    return `${email.slice(0, atIndex)}@**********`;
+  }
+  return email;
+};
 
 const getSignalReason = (entry: WebhookEntry) => {
   const assunto = (entry.payload.Assunto || "").toLowerCase();
@@ -349,6 +361,11 @@ export function WebhookDashboard() {
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-3">
+                        {formatMaskedEmail(latestEntry) && (
+                          <span className="text-xs font-mono font-bold text-slate-500 bg-white px-3 py-1 rounded-full border border-slate-200/60 shadow-sm">
+                            {formatMaskedEmail(latestEntry)}
+                          </span>
+                        )}
                         {getSignalReason(latestEntry) === "Link de Residência" ? (
                           <span className="text-3xl font-black text-blue-900 drop-shadow-sm uppercase tracking-tight text-center py-4">
                             CÓDIGO RESIDÊNCIA
@@ -438,6 +455,11 @@ export function WebhookDashboard() {
                         {formatTimeElapsed(entry.timestamp)}
                       </span>
                     </div>
+                    {formatMaskedEmail(entry) && (
+                      <span className="text-[11px] font-mono font-bold text-slate-500 mb-1">
+                        {formatMaskedEmail(entry)}
+                      </span>
+                    )}
                     {!canViewSignal(entry.id) ? (
                       <div className="flex items-center gap-2">
                         <Lock className="w-3 h-3 text-red-300" />
